@@ -58,8 +58,9 @@ impl Opened {
         for (dir, entry) in rpf.entries.iter().enumerate() {
             if let RpfEntryKind::Directory { entries_index, entries_count } = entry.kind {
                 let start = entries_index as usize;
-                for i in start..(start + entries_count as usize).min(rpf.entries.len()) {
-                    children.entry((dir as u32, rpf.entries[i].name_lower.clone())).or_insert(i as u32);
+                let end = (start + entries_count as usize).min(rpf.entries.len());
+                for (i, child) in rpf.entries.iter().enumerate().take(end).skip(start) {
+                    children.entry((dir as u32, child.name_lower.clone())).or_insert(i as u32);
                 }
             }
         }
