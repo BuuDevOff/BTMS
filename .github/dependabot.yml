@@ -1,3 +1,6 @@
+# Dependency updates. The pull request titles follow Conventional Commits ("chore(deps): …",
+# "ci(deps): …"), so they pass the title check and never publish a release by themselves.
+# Major versions are left out: they change APIs and are upgraded by hand.
 version: 2
 updates:
   - package-ecosystem: cargo
@@ -5,7 +8,11 @@ updates:
     schedule:
       interval: weekly
     commit-message:
-      prefix: deps
+      prefix: chore
+      include: scope
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       cargo-minor-and-patch:
         update-types: [minor, patch]
@@ -16,3 +23,4 @@ updates:
       interval: weekly
     commit-message:
       prefix: ci
+      include: scope
