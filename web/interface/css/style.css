@@ -1,0 +1,2495 @@
+/*
+ *  ____                 ____
+ * | __ )  _   _  _   _ |  _ \   ___ __   __
+ * |  _ \ | | | || | | || | | | / _ \\ \ / /
+ * | |_) || |_| || |_| || |_| ||  __/ \ V /
+ * |____/  \__,_| \__,_||____/  \___|  \_/
+ *
+ * BTMS · Buu's Tiles Map Scanner
+ * Author : BuuDevOff · https://github.com/BuuDevOff
+ * SPDX-License-Identifier: GPL-3.0-only
+ */
+
+/*
+ * The page of the interface: one window, three areas (settings, map, progress). Same look as the
+ * map viewer (web/viewer/index.html): dark, restrained, steel blue; the map is the only thing
+ * allowed to be colourful. Nothing is downloaded: system fonts, inline icons.
+ */
+
+/* ---------------------------------------------------------------------------------------- tokens */
+
+:root {
+  color-scheme: dark;
+
+  /* surfaces, from the window background up to raised elements */
+  --bg: #070a0e;
+  --bg-2: #0b1016;
+  --surface: #0f151d;
+  --surface-2: #151d27;
+  --surface-3: #1c2633;
+  --overlay: rgba(10, 14, 20, 0.88);
+  --scrim: rgba(3, 5, 8, 0.72);
+
+  --line: rgba(148, 163, 184, 0.1);
+  --line-2: rgba(148, 163, 184, 0.18);
+  --line-3: rgba(148, 163, 184, 0.3);
+
+  --text: #e6ecf2;
+  --text-2: #b4c0cc;
+  --muted: #8693a2;
+  --dim: #5a6573;
+
+  /* accent (steel blue) and states */
+  --accent: #8fb3d9;
+  --accent-2: #b9d1ea;
+  --accent-strong: #5585c2;
+  --accent-soft: rgba(143, 179, 217, 0.12);
+  --steel: #294761;
+  --green: #5fae8a;
+  --green-soft: rgba(95, 174, 138, 0.14);
+  --green-text: #8fd0b0;
+  --amber: #d0a85c;
+  --amber-soft: rgba(208, 168, 92, 0.14);
+  --amber-text: #e3c58a;
+  --red: #c94f55;
+  --red-soft: rgba(201, 79, 85, 0.14);
+  --red-text: #e9a3a6;
+
+  /* the load: processor and graphics card, a hue each (meters, curve, legend) */
+  --series-cpu: #5b93d6;
+  --series-cpu-track: rgba(91, 147, 214, 0.16);
+  --series-gpu: #d9733a;
+  --series-gpu-track: rgba(217, 115, 58, 0.16);
+
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+
+  --r-sm: 5px;
+  --r: 8px;
+  --r-lg: 12px;
+  --r-pill: 999px;
+
+  /* Bahnschrift ships with Windows 10 and 11 */
+  --font-body: "Bahnschrift", "Segoe UI", system-ui, sans-serif;
+  --font-head: "Bahnschrift SemiCondensed", "Bahnschrift", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Cascadia Mono", Consolas, "Courier New", monospace;
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 22px;
+
+  --shadow-pop: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 24px 56px -18px rgba(0, 0, 0, 0.95), 0 0 0 1px var(--line-2);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --topbar: 48px;
+  --col-settings: 332px;
+  --col-progress: 348px;
+}
+
+/* ---------------------------------------------------------------------------------------- base */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: var(--fs);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-family: var(--font-head);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+
+h2 { font-size: var(--fs-lg); }
+h3 { font-size: var(--fs-sm); color: var(--text-2); letter-spacing: 0.03em; }
+
+p,
+ul,
+ol,
+dl,
+dd {
+  margin: 0;
+  padding: 0;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+hr {
+  height: 1px;
+  margin: var(--s-1) 0;
+  border: 0;
+  background: var(--line-2);
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--steel);
+  color: var(--text);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-3) transparent;
+}
+
+.selectable {
+  user-select: text;
+  cursor: text;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 0.93em;
+  font-variant-numeric: tabular-nums;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.grow {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.icon {
+  flex: none;
+}
+
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border: 1px solid var(--line-3);
+  border-bottom-width: 2px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* ---------------------------------------------------------------------------------------- shared components */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  height: 32px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: var(--fs);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s;
+}
+
+.btn:hover {
+  background: var(--surface-3);
+  border-color: var(--line-3);
+}
+
+.btn:active {
+  background: var(--surface);
+}
+
+.btn:disabled {
+  opacity: 0.42;
+  cursor: default;
+  pointer-events: none;
+}
+
+.btn-primary {
+  border-color: transparent;
+  background: var(--accent-strong);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: #6694cf;
+  border-color: transparent;
+}
+
+.btn-primary:active {
+  background: #4a78b4;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-2);
+}
+
+.btn-ghost:hover {
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--text);
+}
+
+.btn-danger {
+  border-color: rgba(201, 79, 85, 0.4);
+  background: var(--red-soft);
+  color: var(--red-text);
+}
+
+.btn-danger:hover {
+  border-color: rgba(201, 79, 85, 0.7);
+  background: rgba(201, 79, 85, 0.24);
+}
+
+.btn-sm {
+  height: 26px;
+  padding: 0 var(--s-2);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-sm);
+}
+
+.btn-lg {
+  height: 38px;
+  padding: 0 var(--s-4);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.btn-icon {
+  width: 32px;
+  padding: 0;
+}
+
+.btn[aria-pressed="true"] {
+  border-color: var(--accent-strong);
+  background: var(--accent-soft);
+  color: var(--accent-2);
+}
+
+/* segmented control */
+.seg {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  background: var(--bg-2);
+}
+
+.seg button {
+  height: 26px;
+  padding: 0 var(--s-3);
+  border: 0;
+  border-radius: calc(var(--r) - 2px);
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.seg button:hover {
+  color: var(--text);
+}
+
+.seg button[aria-pressed="true"] {
+  background: var(--steel);
+  color: var(--text);
+}
+
+.field {
+  width: 100%;
+  padding: 6px var(--s-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  background: var(--bg-2);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.field:hover {
+  border-color: var(--line-3);
+}
+
+.field:focus {
+  border-color: var(--accent-strong);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 20px;
+  padding: 0 var(--s-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.badge-accent { border-color: rgba(143, 179, 217, 0.35); background: var(--accent-soft); color: var(--accent-2); }
+.badge-green { border-color: rgba(95, 174, 138, 0.4); background: var(--green-soft); color: var(--green-text); }
+.badge-amber { border-color: rgba(208, 168, 92, 0.4); background: var(--amber-soft); color: var(--amber-text); }
+.badge-red { border-color: rgba(201, 79, 85, 0.4); background: var(--red-soft); color: var(--red-text); }
+
+.badge-live::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.spinner {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--line-3);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* a panel floating over the map */
+.panel-float {
+  position: absolute;
+  z-index: 5;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  background: var(--overlay);
+  box-shadow: var(--shadow-pop);
+}
+
+/* an on/off switch (its box holds its hidden box: focused, the box must be where the switch is,
+   or the whole document scrolls to reach it, and cannot come back: the body hides its overflow) */
+.switch {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.switch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.switch-track {
+  position: relative;
+  flex: none;
+  width: 34px;
+  height: 20px;
+  border: 1px solid var(--line-3);
+  border-radius: var(--r-pill);
+  background: var(--bg-2);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.switch-track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 0.15s var(--ease), background 0.15s;
+}
+
+.switch input:checked + .switch-track {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+}
+
+.switch input:checked + .switch-track::after {
+  background: #fff;
+  transform: translateX(14px);
+}
+
+.switch input:focus-visible + .switch-track {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+.switch input:disabled + .switch-track {
+  opacity: 0.45;
+}
+
+input[type="range"] {
+  width: 100%;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent-strong);
+  cursor: pointer;
+}
+
+input[type="checkbox"] {
+  accent-color: var(--accent-strong);
+}
+
+/* ---------------------------------------------------------------------------------------- frame */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex: none;
+  height: var(--topbar);
+  padding: 0 var(--s-3) 0 var(--s-2);
+  border-bottom: 1px solid var(--line-2);
+  background: var(--surface);
+  white-space: nowrap;
+}
+
+.topbar-logo {
+  flex: none;
+  border-radius: 6px;
+}
+
+.topbar-title {
+  font-size: 17px;
+  letter-spacing: 0.03em;
+}
+
+.topbar-dot {
+  color: var(--dim);
+}
+
+/* the long name after the short one; narrow windows leave it out */
+.topbar-subtitle {
+  color: var(--text-2);
+  font-weight: 400;
+}
+
+.topbar-version {
+  color: var(--dim);
+  font-size: var(--fs-xs);
+}
+
+/* the language list: it looks like the ghost buttons of the bar */
+.topbar-language {
+  flex: none;
+  height: 32px;
+  padding: 0 28px 0 var(--s-3);
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 3.5 5 6.5 8 3.5' fill='none' stroke='%238693a2' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 10px center / 10px 10px;
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs);
+  cursor: pointer;
+  appearance: none;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.topbar-language:hover {
+  background-color: var(--accent-soft);
+  color: var(--text);
+}
+
+/* the open list is drawn by the system, in these colours */
+.topbar-language option {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* the three checks */
+.checks {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  min-width: 0;
+  margin-left: var(--s-2);
+  padding-left: var(--s-3);
+  border-left: 1px solid var(--line-2);
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.check:hover,
+.check[aria-expanded="true"] {
+  border-color: var(--line-2);
+  background: var(--surface-2);
+}
+
+.check i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dim);
+}
+
+.check.is-ok i {
+  background: var(--green);
+}
+
+.check.is-failing {
+  border-color: rgba(201, 79, 85, 0.4);
+  background: var(--red-soft);
+  color: var(--red-text);
+}
+
+.check.is-failing i {
+  background: var(--red);
+}
+
+.check-popover {
+  position: fixed;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  width: min(420px, calc(100vw - 2 * var(--s-3)));
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface-2);
+}
+
+.check-popover h3 {
+  color: var(--text);
+  font-size: var(--fs);
+}
+
+.check-popover p {
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+}
+
+.check-popover .path {
+  color: var(--accent-2);
+}
+
+/* tools menu */
+.menu {
+  position: relative;
+  flex: none;
+}
+
+.menu-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  min-width: 290px;
+  padding: var(--s-1);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  background: var(--surface-2);
+  box-shadow: var(--shadow-pop);
+}
+
+.menu-list button {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: 32px;
+  padding: 0 var(--s-3);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-list button:hover,
+.menu-list button:focus-visible {
+  background: var(--accent-soft);
+}
+
+.menu-list button:disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* what is wrong, under the top bar */
+.alerts {
+  flex: none;
+}
+
+.alert,
+.banner {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 40px;
+  padding: 6px var(--s-4);
+  border-bottom: 1px solid rgba(208, 168, 92, 0.3);
+  background: var(--amber-soft);
+  color: var(--amber-text);
+  font-size: var(--fs-sm);
+}
+
+.alert b,
+.banner b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.alert-text {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.banner {
+  flex: none;
+}
+
+.banner-red {
+  border-bottom-color: rgba(201, 79, 85, 0.4);
+  background: var(--red-soft);
+  color: var(--red-text);
+}
+
+.layout {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--col-settings) minmax(0, 1fr) var(--col-progress);
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.app.no-settings .layout {
+  grid-template-columns: 0 minmax(0, 1fr) var(--col-progress);
+}
+
+.app.no-settings .settings {
+  display: none;
+}
+
+/* ---------------------------------------------------------------------------------------- settings */
+
+.settings {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--line-2);
+  background: var(--surface);
+}
+
+.settings-scrim {
+  display: none;
+}
+
+.section {
+  flex: none;
+  border-bottom: 1px solid var(--line);
+}
+
+.section > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: 44px;
+  padding: 0 var(--s-4) 0 var(--s-3);
+  list-style: none;
+  cursor: pointer;
+}
+
+.section > summary::-webkit-details-marker,
+.changes > summary::-webkit-details-marker,
+.collapsible-list > summary::-webkit-details-marker,
+.log > summary::-webkit-details-marker,
+.errors > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* the chevron of anything that folds */
+.section > summary::before,
+.collapsible-list > summary::before,
+.log > summary::before,
+.changes > summary::before,
+.errors > summary::before {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin: 0 4px 0 3px;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: rotate(-45deg);
+  transition: transform 0.15s var(--ease);
+}
+
+.section[open] > summary::before,
+.collapsible-list[open] > summary::before,
+.log[open] > summary::before,
+.changes[open] > summary::before,
+.errors[open] > summary::before {
+  transform: rotate(45deg) translate(-2px, -2px);
+}
+
+.section > summary:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* (on one line: a long note, "WebP lossless · <folder>", is the one cut short) */
+.section-title {
+  flex: none;
+  white-space: nowrap;
+  font-family: var(--font-head);
+  font-size: var(--fs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.section-note {
+  margin-left: auto;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.section-note.is-modified {
+  color: var(--amber-text);
+}
+
+.section-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-1) var(--s-4) var(--s-4);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  transition: opacity 0.15s;
+}
+
+.group.is-inactive {
+  opacity: 0.4;
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.presets .btn {
+  flex: 1 1 auto;
+}
+
+.slider {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.slider-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+
+.slider-head output {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+/* the compass: north up, the sun where the light comes from */
+.compass {
+  flex: none;
+  overflow: visible;
+}
+
+.compass-dial {
+  fill: var(--bg-2);
+  stroke: var(--line-3);
+}
+
+.compass-ticks {
+  stroke: var(--dim);
+  stroke-linecap: round;
+}
+
+.compass-north {
+  fill: var(--muted);
+  font-size: 8px;
+  font-weight: 600;
+}
+
+.compass-ray,
+.compass-arrow {
+  fill: none;
+  stroke: var(--amber);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.compass-sun-disc {
+  fill: var(--amber);
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+
+.compass-center {
+  fill: var(--text-2);
+}
+
+#compass-sun {
+  transform-origin: 28px 28px;
+  transition: transform 0.15s var(--ease);
+}
+
+.setting-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.setting-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.help {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  text-wrap: pretty;
+}
+
+/* a setting the card may not hold (under its slider) */
+.help-warning {
+  color: var(--amber-text);
+}
+
+.collapsible-list > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  height: 26px;
+  color: var(--accent);
+  font-size: var(--fs-sm);
+  list-style: none;
+  cursor: pointer;
+}
+
+.collapsible-list > summary::before {
+  border-color: var(--accent);
+}
+
+.text-area {
+  display: block;
+  max-height: 260px;
+  resize: vertical;
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  white-space: pre;
+  user-select: text;
+  cursor: text;
+}
+
+.folder-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.folder {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 30px;
+  padding: 3px var(--s-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--bg-2);
+}
+
+.folder input {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.folder .path {
+  flex: 1 1 0;
+}
+
+.folder.is-unticked .path {
+  color: var(--dim);
+  text-decoration: line-through;
+}
+
+.folder-remove {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.folder-remove:hover {
+  background: var(--red-soft);
+  color: var(--red-text);
+}
+
+.folder-list-empty {
+  color: var(--dim);
+  font-size: var(--fs-sm);
+}
+
+/* a path: it breaks anywhere rather than hide its end */
+.path {
+  min-width: 0;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.setting-block-file {
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line);
+}
+
+.setting-block-file .btn {
+  align-self: flex-start;
+}
+
+/* a short switch beside a slider */
+.switch-compact {
+  flex: none;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+
+/* a choice among a few, each on a line of its own (who draws, who shades) */
+.choice {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  background: var(--bg-2);
+}
+
+.choice button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  min-height: 30px;
+  padding: 4px var(--s-2);
+  border: 0;
+  border-radius: calc(var(--r) - 2px);
+  background: transparent;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.choice button:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.choice button[aria-pressed="true"] {
+  background: var(--steel);
+  color: var(--text);
+}
+
+.choice button:disabled {
+  opacity: 0.42;
+  cursor: default;
+  pointer-events: none;
+}
+
+.choice-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.choice-detail {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.choice button[aria-pressed="true"] .choice-detail {
+  color: var(--text-2);
+}
+
+.presets .btn[aria-pressed="true"] {
+  font-weight: 600;
+}
+
+.slider input[type="range"]:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* "differs from map.toml" */
+.diff {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid rgba(208, 168, 92, 0.3);
+  border-radius: var(--r);
+  background: var(--amber-soft);
+  color: var(--amber-text);
+  font-size: var(--fs-sm);
+}
+
+.settings-footer {
+  margin-top: auto;
+  padding: var(--s-3) var(--s-4);
+  color: var(--dim);
+  font-size: var(--fs-xs);
+}
+
+.settings-footer.is-error {
+  color: var(--red-text);
+}
+
+/* ---------------------------------------------------------------------------------------- map */
+
+.scene {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  isolation: isolate;
+  /* the panels over the map adapt to its width, not to the window's */
+  container: scene / inline-size;
+  background: radial-gradient(120% 100% at 50% 40%, var(--bg-2), var(--bg));
+}
+
+.map {
+  position: absolute;
+  inset: 0;
+}
+
+.map-canvas {
+  display: block;
+  outline: none;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.map-canvas:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent-strong);
+}
+
+/* the message of a failed block, next to the pointer */
+.map-tooltip {
+  position: absolute;
+  z-index: 6;
+  max-width: min(420px, 80%);
+  padding: 6px var(--s-2);
+  border: 1px solid rgba(201, 79, 85, 0.5);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--red-text);
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  box-shadow: var(--shadow-pop);
+}
+
+/* toolbar and legend, one under the other in the top left corner */
+.map-top {
+  position: absolute;
+  top: var(--s-3);
+  left: var(--s-3);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  max-width: calc(100% - 2 * var(--s-3));
+  pointer-events: none;
+}
+
+.map-top > .panel-float {
+  position: static;
+  pointer-events: auto;
+}
+
+.map-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-1);
+}
+
+.map-toolbar .btn-sm {
+  height: 30px;
+  padding: 0 var(--s-3);
+}
+
+.map-source-status {
+  padding: 0 var(--s-1);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+
+.separator {
+  width: 1px;
+  height: 20px;
+  background: var(--line-2);
+}
+
+.map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-1) var(--s-3);
+  padding: var(--s-1) var(--s-1) var(--s-1) var(--s-3);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.swatch {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+}
+
+.swatch-waiting { border: 1px solid rgba(143, 179, 217, 0.45); background: rgba(52, 70, 92, 0.9); }
+.swatch-running { background: var(--amber); }
+.swatch-done { border: 1px solid var(--green); background: rgba(95, 174, 138, 0.25); }
+.swatch-failed { background: var(--red); }
+
+.map-help,
+.map-empty {
+  position: absolute;
+  left: 50%;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  max-width: calc(100% - 2 * var(--s-4));
+  padding: var(--s-2) var(--s-4);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-pill);
+  background: var(--overlay);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  text-align: center;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.map-help {
+  bottom: 60px;
+  border-color: rgba(143, 179, 217, 0.4);
+  color: var(--accent-2);
+}
+
+.map-empty {
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.map-zoom {
+  right: var(--s-3);
+  bottom: var(--s-3);
+  display: flex;
+  flex-direction: column;
+  padding: 2px;
+}
+
+.map-zoom .btn {
+  border-radius: calc(var(--r) - 2px);
+}
+
+.map-hud {
+  left: var(--s-3);
+  bottom: var(--s-3);
+  display: flex;
+  align-items: center;
+  max-width: calc(100% - 2 * var(--s-3) - 48px);
+  height: 30px;
+  overflow: hidden;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.hud-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  padding: 0 var(--s-3);
+  border-left: 1px solid var(--line);
+}
+
+.hud-item:first-child {
+  border-left: 0;
+}
+
+.hud-label {
+  color: var(--dim);
+}
+
+.hud-num {
+  display: inline-block;
+  min-width: 6ch;
+  color: var(--text);
+  text-align: right;
+}
+
+#hud-block {
+  display: inline-block;
+  min-width: 18ch;
+  color: var(--text);
+}
+
+#hud-zoom {
+  display: inline-block;
+  min-width: 3ch;
+  color: var(--text);
+}
+
+.scale-bar {
+  display: block;
+  height: 7px;
+  border: 1.5px solid var(--text-2);
+  border-top: 0;
+}
+
+/* a map just wide enough for the whole readout (a 1366 px window with the settings shown) gives
+   it narrower gaps: some languages write its labels and states longer than English does */
+@container scene (max-width: 760px) {
+  .hud-item {
+    padding: 0 var(--s-2);
+  }
+}
+
+/* a narrow map keeps what matters most: position, then the scale, then the block and the zoom */
+@container scene (max-width: 680px) {
+  .hud-zoom {
+    display: none;
+  }
+
+  #hud-block {
+    min-width: 0;
+  }
+}
+
+@container scene (max-width: 520px) {
+  .hud-block {
+    display: none;
+  }
+}
+
+@container scene (max-width: 420px) {
+  .hud-scale,
+  .map-source-status {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------------------- progress */
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid var(--line-2);
+  background: var(--surface);
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-2);
+  flex: none;
+  padding: var(--s-4) var(--s-4) var(--s-2);
+}
+
+.actions #stop,
+.actions #launch-update {
+  grid-column: 1 / -1;
+}
+
+.actions-note {
+  flex: none;
+  min-height: 34px;
+  padding: 0 var(--s-4) var(--s-3);
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  text-wrap: pretty;
+}
+
+.actions-note.is-blocked {
+  color: var(--amber-text);
+}
+
+/* the load of the machine: always in view, above the job */
+.load {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  flex: none;
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--line);
+}
+
+/* a meter list: the name, the bar, the figure, the bars aligned */
+.gauges {
+  display: grid;
+  gap: 5px var(--s-4);
+}
+
+.gauge {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) 96px;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.gauge-name {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gauge-value {
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.gauge-track {
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--r-pill);
+  background: var(--series-cpu-track);
+}
+
+.gauge-gpu .gauge-track {
+  background: var(--series-gpu-track);
+}
+
+.gauge-track > i {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--series-cpu);
+  transition: width 0.4s var(--ease);
+}
+
+.gauge-gpu .gauge-track > i {
+  background: var(--series-gpu);
+}
+
+.gauge.is-unknown .gauge-value {
+  color: var(--dim);
+}
+
+/* who draws and who shades, beside the gauges: the card's own colour when it does the work */
+.devices {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  padding: 5px var(--s-3);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  background: var(--bg-2);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.devices::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--dim);
+  transform: translateY(-1px);
+}
+
+.devices.is-gpu::before {
+  background: var(--series-gpu);
+}
+
+.devices.is-fallback {
+  border-color: rgba(208, 168, 92, 0.45);
+  color: var(--amber-text);
+}
+
+.devices.is-fallback::before {
+  background: var(--amber);
+}
+
+.chart {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.chart-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.chart-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.key {
+  width: 10px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--series-cpu);
+}
+
+.key-gpu {
+  background: var(--series-gpu);
+}
+
+.chart-duration {
+  color: var(--dim);
+}
+
+.chart-plot {
+  position: relative;
+  height: 44px;
+  border-bottom: 1px solid var(--line-2);
+}
+
+.chart-plot svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.chart-grid {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.chart-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.chart-cpu {
+  stroke: var(--series-cpu);
+}
+
+.chart-gpu {
+  stroke: var(--series-gpu);
+}
+
+.chart-marker {
+  fill: none;
+  stroke: var(--line-3);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.chart-axis {
+  position: absolute;
+  top: -1px;
+  left: 0;
+  color: var(--dim);
+  font-size: 10px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.chart-tooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  z-index: 6;
+  padding: 4px var(--s-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  background: var(--overlay);
+  box-shadow: var(--shadow-pop);
+  color: var(--text);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.chart-tooltip b {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.chart-tooltip .key {
+  display: inline-block;
+  margin: 0 4px 2px 6px;
+  vertical-align: middle;
+}
+
+/* what the render really took */
+.used {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  flex: none;
+}
+
+.used h3 {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.used-list {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 3px var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  background: var(--bg-2);
+  font-size: var(--fs-sm);
+}
+
+.used-list dt {
+  color: var(--muted);
+}
+
+.used-list dd {
+  color: var(--text);
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.used-list .is-waiting {
+  grid-column: 1 / -1;
+  color: var(--muted);
+}
+
+.progress-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--s-4);
+}
+
+.job-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  flex: none;
+}
+
+/* the work the graphics card did not do: amber, during and after the render */
+.fallback-banner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  flex: none;
+  padding: var(--s-3) var(--s-3) var(--s-3) calc(var(--s-3) + 3px);
+  border: 1px solid rgba(208, 168, 92, 0.5);
+  border-left: 4px solid var(--amber);
+  border-radius: var(--r);
+  background: var(--amber-soft);
+  color: var(--amber-text);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+}
+
+.fallback-banner-line {
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.fallback-banner-line b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* the steps, in a line */
+.steps {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  flex: none;
+}
+
+.steps li {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--dim);
+  font-size: var(--fs-xs);
+  line-height: 1.25;
+  text-align: center;
+}
+
+.steps li i {
+  position: relative;
+  z-index: 1;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--line-3);
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+/* the line to the next step */
+.steps li + li::before {
+  content: "";
+  position: absolute;
+  top: 5px;
+  right: 50%;
+  width: 100%;
+  height: 2px;
+  background: var(--line-2);
+}
+
+.steps li.is-done {
+  color: var(--text-2);
+}
+
+.steps li.is-done i {
+  border-color: var(--green);
+  background: var(--green);
+}
+
+.steps li.is-done + li::before,
+.steps li.is-done::before {
+  background: var(--green);
+}
+
+.steps li.is-active {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.steps li.is-active i {
+  border-color: var(--accent);
+  background: var(--surface);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.steps li.is-active::before {
+  background: var(--green);
+}
+
+.steps li.is-failed {
+  color: var(--red-text);
+}
+
+.steps li.is-failed i {
+  border-color: var(--red);
+  background: var(--red);
+}
+
+.steps li.is-stopped i {
+  border-color: var(--amber);
+  background: var(--amber);
+}
+
+.completion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  flex: none;
+}
+
+.completion-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.completion-percent {
+  font-family: var(--font-head);
+  font-size: 40px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+.completion-detail {
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  text-align: right;
+}
+
+.progress-bar {
+  position: relative;
+  height: 10px;
+  overflow: hidden;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+}
+
+.progress-bar > i {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent-strong), var(--accent));
+  transition: width 0.6s var(--ease), background 0.3s;
+}
+
+/* nothing to count yet: a sweep */
+.progress-bar.is-indeterminate > i {
+  width: 34%;
+  transition: none;
+  animation: sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes sweep {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(310%); }
+}
+
+.progress-bar.is-finished > i { background: var(--green); }
+.progress-bar.is-stopped > i { background: var(--amber); }
+.progress-bar.is-failed > i { background: var(--red); }
+
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  flex: none;
+  overflow: hidden;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  background: var(--line);
+}
+
+.stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s-2) var(--s-3);
+  background: var(--bg-2);
+}
+
+.stats > .large {
+  grid-column: 1 / -1;
+}
+
+.stats dt {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.stats dd {
+  color: var(--text);
+  font-size: var(--fs);
+  font-variant-numeric: tabular-nums;
+}
+
+.stats dd.is-error {
+  color: var(--red-text);
+}
+
+.errors {
+  flex: none;
+  border: 1px solid rgba(201, 79, 85, 0.35);
+  border-radius: var(--r);
+  background: var(--red-soft);
+}
+
+.errors > summary,
+.changes > summary,
+.log > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: 34px;
+  padding: 0 var(--s-3);
+  list-style: none;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.errors > summary {
+  color: var(--red-text);
+}
+
+.errors > summary::before {
+  border-color: var(--red-text);
+}
+
+.errors ul {
+  max-height: 150px;
+  overflow-y: auto;
+  padding: 0 var(--s-3) var(--s-2);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  user-select: text;
+}
+
+.errors li {
+  padding: 2px 0;
+  overflow-wrap: anywhere;
+}
+
+.errors li button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--red-text);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.errors li button:hover {
+  text-decoration: underline;
+}
+
+/* what changed in the server's resources since the map recorded them */
+.changes {
+  flex: none;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  background: var(--bg-2);
+}
+
+.changes > summary {
+  color: var(--text-2);
+}
+
+.changes > summary .badge {
+  margin-left: auto;
+}
+
+.changes-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: 0 var(--s-3) var(--s-3);
+}
+
+.changes-buttons {
+  flex-wrap: wrap;
+}
+
+.changes-status {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+.changes-status:empty {
+  display: none;
+}
+
+.changes-status .spinner {
+  margin-top: 1px;
+}
+
+.changes-status.is-stale {
+  color: var(--amber-text);
+}
+
+.changes-status.is-error {
+  color: var(--red-text);
+}
+
+.changes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.changes-list:empty {
+  display: none;
+}
+
+.changes-list.is-stale {
+  opacity: 0.6;
+}
+
+.change {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: var(--s-2);
+  row-gap: 2px;
+  width: 100%;
+  padding: 6px var(--s-2);
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.change:hover,
+.change:focus-visible {
+  background: var(--surface-2);
+  outline: none;
+}
+
+.change.is-selected {
+  border-color: var(--line-3);
+  background: var(--surface-2);
+}
+
+.change.is-unreadable {
+  cursor: default;
+}
+
+.change .badge {
+  justify-content: center;
+}
+
+.change-name {
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+}
+
+.change-detail {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.change.is-unreadable .change-detail {
+  color: var(--amber-text);
+}
+
+.changes-note {
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid rgba(208, 168, 92, 0.35);
+  border-radius: var(--r-sm);
+  background: var(--amber-soft);
+  color: var(--amber-text);
+  font-size: var(--fs-sm);
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+/* the end of a job */
+.outcome {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  flex: none;
+  padding: var(--s-3);
+  border: 1px solid rgba(95, 174, 138, 0.4);
+  border-radius: var(--r);
+  background: var(--green-soft);
+  color: var(--green-text);
+  overflow-wrap: anywhere;
+}
+
+.outcome p {
+  user-select: text;
+}
+
+.outcome.is-stopped {
+  border-color: rgba(208, 168, 92, 0.4);
+  background: var(--amber-soft);
+  color: var(--amber-text);
+}
+
+.outcome.is-failed {
+  border-color: rgba(201, 79, 85, 0.4);
+  background: var(--red-soft);
+  color: var(--red-text);
+}
+
+.log {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  background: var(--bg-2);
+}
+
+.log > summary {
+  color: var(--text-2);
+}
+
+.log > summary .badge {
+  margin-left: auto;
+}
+
+.log > summary .btn {
+  height: 24px;
+}
+
+/* enlarged: over the whole window, to read a report */
+.log.is-expanded {
+  position: fixed;
+  inset: var(--s-5);
+  z-index: 50;
+  box-shadow: var(--shadow-pop), 0 0 0 100vmax var(--scrim);
+}
+
+.log.is-expanded .log-lines,
+.progress.is-tool .log.is-expanded .log-lines {
+  flex: 1 1 0;
+  height: auto;
+  min-height: 0;
+  font-size: var(--fs-sm);
+}
+
+.log-lines {
+  height: 240px;
+  overflow: auto;
+  padding: var(--s-2) var(--s-3);
+  border-top: 1px solid var(--line);
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+  line-height: 1.55;
+  white-space: pre;
+  outline: none;
+}
+
+/* a tool's report is all there is to read: the log takes the room */
+.progress.is-tool .log-lines {
+  height: max(240px, calc(100vh - 400px));
+}
+
+.progress.is-tool .steps,
+.progress.is-tool .completion,
+.progress.is-tool .stats,
+.progress.no-job .steps,
+.progress.no-job .completion,
+.progress.no-job .stats {
+  display: none;
+}
+
+.progress-empty {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  text-wrap: pretty;
+}
+
+/* ---------------------------------------------------------------------------------------- dialog, toasts, end */
+
+.dialog {
+  width: min(480px, calc(100vw - 2 * var(--s-4)));
+  padding: 0;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  color: var(--text);
+  box-shadow: var(--shadow-pop);
+}
+
+.dialog::backdrop {
+  background: var(--scrim);
+}
+
+.dialog-frame {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-5);
+}
+
+.dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+
+.dialog-body .path {
+  padding: 6px var(--s-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  background: var(--bg-2);
+  color: var(--accent-2);
+  user-select: text;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+}
+
+.toasts {
+  position: fixed;
+  right: var(--s-4);
+  bottom: var(--s-4);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--s-2);
+  max-width: min(520px, calc(100vw - 2 * var(--s-4)));
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-2) var(--s-2) var(--s-3);
+  border: 1px solid var(--line-2);
+  border-left: 3px solid var(--accent-strong);
+  border-radius: var(--r);
+  background: var(--surface-2);
+  box-shadow: var(--shadow-pop);
+  font-size: var(--fs-sm);
+  pointer-events: auto;
+  animation: toast-in 0.2s var(--ease);
+}
+
+.toast-error {
+  border-left-color: var(--red);
+}
+
+.toast-text {
+  padding: 3px 0;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.toast button {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.toast button:hover {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(6px); }
+}
+
+.end-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  background: var(--bg);
+  color: var(--muted);
+}
+
+.end-screen h2 {
+  color: var(--text);
+  font-size: var(--fs-xl);
+}
+
+/* the server does not answer: nothing can be started, and no setting changed (the language is one) */
+.app.offline .actions,
+.app.offline .settings,
+.app.offline .menu,
+.app.offline .topbar-language {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------------------------------- narrow windows */
+
+/* the settings become a drawer over the map */
+@media (max-width: 1180px) {
+  .layout,
+  .app.no-settings .layout {
+    grid-template-columns: minmax(0, 1fr) var(--col-progress);
+  }
+
+  .settings {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 30;
+    width: min(var(--col-settings), 88vw);
+    box-shadow: 24px 0 48px -24px rgba(0, 0, 0, 0.9);
+  }
+
+  .app:not(.no-settings) .settings-scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 29;
+    display: block;
+    background: var(--scrim);
+  }
+
+  .topbar-version {
+    display: none;
+  }
+}
+
+/* the long name gives its room to the checks and the language list, whose labels are longer in
+   some languages (Russian, Spanish) than in English */
+@media (max-width: 1000px) {
+  .topbar-subtitle {
+    display: none;
+  }
+}
+
+/* the progress goes under the map */
+@media (max-width: 860px) {
+  .layout,
+  .app.no-settings .layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(220px, 1fr) minmax(0, 46%);
+  }
+
+  .progress {
+    border-top: 1px solid var(--line-2);
+    border-left: 0;
+  }
+
+  .actions {
+    padding-top: var(--s-3);
+  }
+
+  .check span {
+    display: none;
+  }
+
+  .check {
+    padding: 0 8px;
+  }
+
+  .progress.is-tool .log-lines {
+    height: 200px;
+  }
+
+  .load {
+    padding-top: var(--s-2);
+    padding-bottom: var(--s-2);
+  }
+
+  .gauges {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .chart-plot {
+    height: 28px;
+  }
+}
+
+@media (max-width: 640px) {
+  .gauges {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-legend .chart-duration {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .topbar-title {
+    font-size: 14px;
+  }
+
+  .topbar-logo {
+    display: none;
+  }
+
+  .topbar-language {
+    padding-left: var(--s-2);
+    font-size: var(--fs-sm);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

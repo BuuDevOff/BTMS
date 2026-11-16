@@ -1,0 +1,219 @@
+# Every push to main builds BTMS for Windows: the installer and the portable zip, kept as the run's
+# artifacts. A push that brings a feature or a fix (Conventional Commits: feat:, fix:, perf:, or a
+# breaking change "!") also publishes a new version:
+#
+#   1. release-please opens (or updates) the release pull request: the next version in Cargo.toml
+#      and Cargo.lock, and its section of CHANGELOG.md;
+#   2. that pull request is merged at once (set the repository variable BTMS_AUTO_RELEASE to
+#      "false" to merge it yourself instead), which tags vX.Y.Z and creates the GitHub release;
+#   3. the Windows build of that tag is attached to the release.
+#
+# The very first push publishes the version already in Cargo.toml (v1.0.0) with its CHANGELOG.md
+# section. Run the workflow by hand with a tag to build that version again and replace its files.
+#
+# One repository setting is needed: Settings → Actions → General → Workflow permissions →
+# "Allow GitHub Actions to create and approve pull requests".
+
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release to build again and attach (for example v1.0.0). Empty builds main as a preview.
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  first-release:
+    name: First release
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      created: ${{ steps.publish.outputs.created }}
+      tag: ${{ steps.publish.outputs.tag }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      # Only while the repository has no release at all: later versions come from release-please.
+      - name: Publish the version of Cargo.toml
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ -n "$(gh release list --limit 1 --json tagName --jq '.[].tagName')" ]; then
+            echo "created=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
+          tag="v$version"
+          # the notes: the CHANGELOG.md section of that version, without the link definitions
+          awk -v v="[$version]" '
+            /^## / { if (inside) exit; if (index($0, v)) { inside = 1; next } }
+            inside && !/^\[[^]]+\]: / { print }
+          ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "CHANGELOG.md has no section for $version" >&2
+            exit 1
+          fi
+          gh release create "$tag" --target "$GITHUB_SHA" --title "BTMS $tag" --notes-file notes.md
+          echo "created=true" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+  release-please:
+    name: Version and changelog
+    needs: first-release
+    if: github.event_name == 'push' && needs.first-release.outputs.created != 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      created: ${{ steps.after-merge.outputs.release_created || steps.release.outputs.release_created }}
+      tag: ${{ steps.after-merge.outputs.tag_name || steps.release.outputs.tag_name }}
+    steps:
+      - name: Open or update the release pull request
+        id: release
+        uses: googleapis/release-please-action@v5
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      # (a branch rule that requires reviews makes this fail: the pull request then waits for you,
+      # and the preview build still runs)
+      - name: Merge the release pull request
+        id: merge
+        if: vars.BTMS_AUTO_RELEASE != 'false' && steps.release.outputs.prs_created == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ fromJSON(steps.release.outputs.pr).number }}
+        run: gh pr merge "$PR" --repo "$GITHUB_REPOSITORY" --squash --delete-branch
+
+      # A merge made with the workflow's token starts no new run, so the release is made here
+      - name: Tag and publish the release
+        id: after-merge
+        if: steps.merge.outcome == 'success'
+        uses: googleapis/release-please-action@v5
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  build:
+    name: Windows build
+    needs: [first-release, release-please]
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
+    runs-on: windows-latest
+    env:
+      # the release to attach the build to; empty for a preview build of main
+      TAG: ${{ needs.first-release.outputs.tag || (needs.release-please.outputs.created == 'true' && needs.release-please.outputs.tag) || inputs.tag || '' }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG || github.sha }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: release
+
+      - name: Read the version
+        id: version
+        shell: pwsh
+        run: |
+          $version = (cargo metadata --no-deps --format-version 1 | ConvertFrom-Json).packages[0].version
+          if ($env:TAG -and $env:TAG -ne "v$version") {
+            Write-Error "The tag $env:TAG does not match the version $version of Cargo.toml."
+            exit 1
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          # Windows file versions are numbers only: 1.2.3 of 1.2.3-beta.1
+          "numeric=$(($version -split '[-+]')[0])" >> $env:GITHUB_OUTPUT
+
+      - name: Build
+        run: cargo build --release --locked
+
+      - name: Installer
+        shell: pwsh
+        run: |
+          $iscc = (Get-Command iscc.exe -ErrorAction SilentlyContinue).Source
+          if (-not $iscc) { $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup --no-progress -y
+            $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          }
+          & $iscc /Q "/DAppVersion=${{ steps.version.outputs.version }}" "/DAppNumericVersion=${{ steps.version.outputs.numeric }}" installer\btms.iss
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      - name: Portable zip and checksums
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $name = "BTMS-${{ steps.version.outputs.version }}-x64-portable"
+          New-Item -ItemType Directory -Path "dist/$name" | Out-Null
+          Copy-Item -Path target/release/btms.exe, target/release/btms-gui.exe, map.toml, LICENSE, README.md, CHANGELOG.md -Destination "dist/$name"
+          Compress-Archive -Path "dist/$name/*" -DestinationPath "dist/$name.zip"
+          Remove-Item -Recurse -Force "dist/$name"
+          $sums = Get-ChildItem dist -File | Sort-Object Name | ForEach-Object {
+            "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.Name
+          }
+          [IO.File]::WriteAllText("$PWD/dist/SHA256SUMS.txt", ($sums -join "`n") + "`n")
+          Get-ChildItem dist | Format-Table Name, Length
+          Get-Content dist/SHA256SUMS.txt
+
+      - name: Keep the build
+        uses: actions/upload-artifact@v7
+        with:
+          name: BTMS-${{ steps.version.outputs.version }}-windows-x64-run${{ github.run_number }}
+          path: dist/*
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Attach to the release
+        if: env.TAG != ''
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh release upload $env:TAG (Get-ChildItem dist -File).FullName --clobber
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          # the download table, added once under the notes
+          $body = gh release view $env:TAG --json body --jq .body
+          if ($body -notmatch '<!-- btms-downloads -->') {
+            $v = $env:VERSION
+            $downloads = @"
+
+          <!-- btms-downloads -->
+          ## Downloads
+
+          | File | |
+          |---|---|
+          | **BTMS-Setup-$v-x64.exe** | Installer for Windows 10/11 x64. Installs for your user without administrator rights (or for all users), adds a Start menu shortcut, and can add ``btms`` to the PATH. |
+          | **BTMS-$v-x64-portable.zip** | Portable: unzip anywhere, then run ``btms-gui.exe`` for the interface, or ``btms.exe`` in a terminal. |
+          | **SHA256SUMS.txt** | Checksums. Compare with ``Get-FileHash <file> -Algorithm SHA256``. |
+
+          Keys: the installer sets them up for you. Its task **Set up the keys now** (ticked by default) downloads ``magic.dat`` from CodeWalker's official GitHub and imports the keys; BTMS itself ships no key. With the portable zip, or if that step failed, run ``btms import-keys <magic.dat>`` once (add ``--game <GTA V folder>`` without FiveM), or use **Import magic.dat…** in the interface. See [Getting started](https://github.com/BuuDevOff/BTMS/blob/$env:TAG/docs/getting-started.md).
+
+          The executables are not code-signed yet, so Windows SmartScreen may warn about a new publisher on the first launch.
+          "@
+            [IO.File]::WriteAllText("$PWD/notes.md", $body + $downloads)
+            gh release edit $env:TAG --notes-file notes.md
+          }

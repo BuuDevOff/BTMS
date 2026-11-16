@@ -1,0 +1,476 @@
+<!doctype html>
+<!--
+  ____                 ____
+ | __ )  _   _  _   _ |  _ \   ___ __   __
+ |  _ \ | | | || | | || | | | / _ \\ \ / /
+ | |_) || |_| || |_| || |_| ||  __/ \ V /
+ |____/  \__,_| \__,_||____/  \___|  \_/
+
+ BTMS · Buu's Tiles Map Scanner
+ Author : BuuDevOff · https://github.com/BuuDevOff
+ SPDX-License-Identifier: GPL-3.0-only
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="author" content="BuuDevOff">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#070a0e">
+<!-- the server writes the token of this run here; every /api request carries it back -->
+<meta name="btms-token" content="{{TOKEN}}">
+<title>BTMS</title>
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<!--
+  The static text carries data-i18n keys (page.*, common.*, header.language): js/i18n.js fills it
+  in the chosen language. The English written here is what shows before, or without, the script.
+-->
+<div class="app" id="app">
+
+  <!-- top bar: title, the three checks, the language, tools -->
+  <header class="topbar">
+    <button class="btn btn-ghost btn-icon" id="settings-toggle" type="button" aria-label="Settings" aria-controls="settings" aria-expanded="true" title="Show or hide the settings" data-i18n-aria-label="page.settings.label" data-i18n-title="page.header.settingsToggle"></button>
+    <img class="topbar-logo" src="icon.png" alt="" width="26" height="26">
+    <h1 class="topbar-title">BTMS<span class="topbar-subtitle"> <span class="topbar-dot">·</span> Buu's Tiles Map Scanner</span></h1>
+    <span class="badge badge-amber" id="demo-badge" hidden data-i18n="page.header.demo">Demo</span>
+    <div class="checks" id="checks" role="group" aria-label="Status of the game, the keys and map.toml" data-i18n-aria-label="page.header.checks"></div>
+    <div class="grow"></div>
+    <select class="topbar-language" id="language-select" aria-label="Language" title="Language" data-i18n-aria-label="header.language" data-i18n-title="header.language">
+      <option value="en" lang="en">English</option>
+      <option value="fr" lang="fr">Français</option>
+      <option value="de" lang="de">Deutsch</option>
+      <option value="nl" lang="nl">Nederlands</option>
+      <option value="ru" lang="ru">Русский</option>
+      <option value="sv" lang="sv">Svenska</option>
+      <option value="es" lang="es">Español</option>
+    </select>
+    <span class="topbar-version mono" id="version"></span>
+    <div class="menu" id="tools-menu">
+      <button class="btn btn-ghost" id="tools-button" type="button" aria-haspopup="menu" aria-expanded="false" data-i18n="page.header.tools">Tools</button>
+      <div class="menu-list" id="tools-list" role="menu" hidden>
+        <button type="button" role="menuitem" data-tool="verify" data-i18n="page.tools.verify">Check the game and the keys</button>
+        <button type="button" role="menuitem" data-tool="groups" data-i18n="page.tools.groups">On-demand maps report</button>
+        <button type="button" role="menuitem" data-tool="resources" data-i18n="page.tools.resources">Server resources inventory</button>
+        <hr>
+        <button type="button" role="menuitem" data-tool="quit" data-i18n="page.tools.quit">Quit</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- what is wrong and how to fix it, one line per failed check; and the lost connection -->
+  <div class="alerts" id="alerts"></div>
+  <div class="banner banner-red" id="connection-banner" role="status" hidden>
+    <span class="spinner"></span>
+    <span><b data-i18n="page.connection.lost">Connection lost.</b> <span data-i18n="page.connection.retrying">The program is not answering; trying again automatically…</span></span>
+  </div>
+
+  <div class="layout">
+
+    <!-- settings -->
+    <aside class="settings" id="settings" aria-label="Settings" data-i18n-aria-label="page.settings.label">
+
+      <details class="section" data-section="performance" open>
+        <summary><span class="section-title" data-i18n="page.perf.title">Performance</span><span class="section-note" id="perf-note"></span></summary>
+        <div class="section-body">
+          <div class="presets" role="group" aria-label="Performance presets" data-i18n-aria-label="page.perf.presets">
+            <button class="btn btn-sm" type="button" data-perf-preset="maximum" aria-pressed="false" title="Everything the machine can give: automatic threads, drawing and shading on the graphics card, half of the RAM, half of the card's memory for the textures (the other half is left to the threads' pictures, the shading and the other programs)" data-i18n="page.perf.maximum" data-i18n-title="page.perf.maximumHelp">Maximum</button>
+            <button class="btn btn-sm" type="button" data-perf-preset="balanced" aria-pressed="false" title="Two cores left free, the program chooses who draws and who shades, default memory budgets" data-i18n="page.perf.balanced" data-i18n-title="page.perf.balancedHelp">Balanced</button>
+            <button class="btn btn-sm" type="button" data-perf-preset="quiet" aria-pressed="false" title="Half of the cores, shading by the processor, low priority: the PC stays usable" data-i18n="page.perf.quiet" data-i18n-title="page.perf.quietHelp">Quiet</button>
+          </div>
+          <p class="help" id="perf-help"></p>
+
+          <div class="slider">
+            <div class="slider-head"><label for="perf-threads" data-i18n="page.perf.threads">Worker threads</label><output id="perf-threads-value" class="num"></output></div>
+            <div class="slider-row">
+              <input type="range" id="perf-threads" min="1" max="32" step="1">
+              <label class="switch switch-compact" title="The program chooses the number of threads that keeps every core and the graphics card busy" data-i18n-title="page.perf.threadsAutoHelp"><input type="checkbox" id="perf-threads-auto"><span class="switch-track"></span><span data-i18n="common.auto">Auto</span></label>
+            </div>
+          </div>
+
+          <div class="setting-block">
+            <h3 id="renderer-title" data-i18n="page.perf.renderer">Who draws</h3>
+            <div class="choice" id="renderer-choice" role="group" aria-labelledby="renderer-title"></div>
+          </div>
+
+          <div class="setting-block">
+            <h3 id="shading-title" data-i18n="page.perf.shading">Who shades</h3>
+            <div class="choice" id="shading-choice" role="group" aria-labelledby="shading-title"></div>
+          </div>
+
+          <div class="slider">
+            <div class="slider-head"><label for="perf-ram" data-i18n="page.perf.ram">RAM for the models</label><output id="perf-ram-value" class="num"></output></div>
+            <div class="slider-row">
+              <input type="range" id="perf-ram" min="1" max="64" step="0.5">
+              <button class="btn btn-sm btn-ghost" type="button" data-default="ram_gb" title="Back to the program's budget" data-i18n="common.default" data-i18n-title="page.perf.defaultHelp">Default</button>
+            </div>
+          </div>
+
+          <div class="slider">
+            <div class="slider-head"><label for="perf-vram" data-i18n="page.perf.vram">Graphics card memory (textures)</label><output id="perf-vram-value" class="num"></output></div>
+            <div class="slider-row">
+              <input type="range" id="perf-vram" min="0.5" max="24" step="0.5">
+              <button class="btn btn-sm btn-ghost" type="button" data-default="vram_gb" title="Back to the program's budget" data-i18n="common.default" data-i18n-title="page.perf.defaultHelp">Default</button>
+            </div>
+            <p class="help help-warning" id="vram-warning" hidden></p>
+          </div>
+
+          <div class="setting-block">
+            <h3 id="priority-title" data-i18n="page.perf.priority">Render priority</h3>
+            <div class="seg" id="priority-choice" role="group" aria-labelledby="priority-title">
+              <button type="button" data-priority="normal" aria-pressed="true" data-i18n="page.perf.priorityNormal">Normal</button>
+              <button type="button" data-priority="low" aria-pressed="false" data-i18n="page.perf.priorityLow">Low</button>
+            </div>
+            <p class="help" data-i18n="page.perf.priorityHelp">Low: the render gives way to everything else, so the PC stays usable while it runs.</p>
+          </div>
+          <!-- written by app.js (it depends on whether a render is running) -->
+          <p class="help" id="perf-next-note">These settings apply to the next render.</p>
+        </div>
+      </details>
+
+      <details class="section" data-section="lighting" open>
+        <summary><span class="section-title" data-i18n="page.lighting.title">Lighting</span><span class="section-note" id="lighting-note"></span></summary>
+        <div class="section-body">
+          <label class="switch"><input type="checkbox" id="lighting-enabled"><span class="switch-track"></span><span data-i18n="page.lighting.enabled">Shade the tiles</span></label>
+          <div class="group" id="lighting-controls">
+            <div class="presets">
+              <button class="btn btn-sm" type="button" data-lighting-preset="low" title="Strong relief, darker streets" data-i18n="page.lighting.lowSun" data-i18n-title="page.lighting.lowSunHelp">Low sun — 35°, strength 0.6</button>
+              <button class="btn btn-sm" type="button" data-lighting-preset="high" title="Shaded streets easier to read" data-i18n="page.lighting.highSun" data-i18n-title="page.lighting.highSunHelp">High sun — 45°, strength 0.5</button>
+            </div>
+            <div class="slider with-compass">
+              <div class="slider-head"><label for="lighting-azimuth" data-i18n="page.lighting.azimuth">Sun azimuth</label><output id="lighting-azimuth-value" class="num"></output></div>
+              <div class="slider-row">
+                <input type="range" id="lighting-azimuth" min="0" max="360" step="5">
+                <svg class="compass" id="compass" viewBox="0 0 56 56" width="56" height="56" role="img" aria-label="Compass: where the sun comes from" data-i18n-aria-label="page.lighting.compass">
+                  <circle class="compass-dial" cx="28" cy="28" r="20"/>
+                  <path class="compass-ticks" d="M28 6v4M28 46v4M6 28h4M46 28h4"/>
+                  <text class="compass-north" x="28" y="5.5" text-anchor="middle" data-i18n="page.lighting.north">N</text>
+                  <g id="compass-sun">
+                    <path class="compass-ray" d="M28 13v11"/>
+                    <path class="compass-arrow" d="M24.5 21.5 28 25l3.5-3.5"/>
+                    <circle class="compass-sun-disc" cx="28" cy="8" r="4.2"/>
+                  </g>
+                  <circle class="compass-center" cx="28" cy="28" r="1.6"/>
+                </svg>
+              </div>
+            </div>
+            <div class="slider">
+              <div class="slider-head"><label for="lighting-elevation" data-i18n="page.lighting.elevation">Sun elevation</label><output id="lighting-elevation-value" class="num"></output></div>
+              <input type="range" id="lighting-elevation" min="10" max="80" step="1">
+            </div>
+            <div class="slider">
+              <div class="slider-head"><label for="lighting-strength" data-i18n="page.lighting.strength">Shading strength</label><output id="lighting-strength-value" class="num"></output></div>
+              <input type="range" id="lighting-strength" min="0" max="1" step="0.05">
+            </div>
+            <div class="slider">
+              <div class="slider-head"><label for="lighting-ambient-occlusion" data-i18n="page.lighting.ambientOcclusion">Ambient occlusion</label><output id="lighting-ambient-occlusion-value" class="num"></output></div>
+              <input type="range" id="lighting-ambient-occlusion" min="0" max="1" step="0.05">
+            </div>
+            <label class="switch"><input type="checkbox" id="lighting-shadows"><span class="switch-track"></span><span data-i18n="page.lighting.shadows">Cast shadows</span></label>
+          </div>
+          <div class="diff" id="lighting-diff" hidden>
+            <span class="diff-text"></span>
+            <button class="btn btn-sm" type="button" data-revert="lighting" data-i18n="page.settings.revert">Back to map.toml</button>
+          </div>
+        </div>
+      </details>
+
+      <details class="section" data-section="content">
+        <summary><span class="section-title" data-i18n="page.content.title">What is drawn</span><span class="section-note" id="content-note"></span></summary>
+        <div class="section-body">
+
+          <div class="setting-block">
+            <label class="switch"><input type="checkbox" id="water-enabled"><span class="switch-track"></span><span data-i18n="page.content.water">Water</span></label>
+            <p class="help" data-i18n="page.content.waterHelp">The sea, the lakes, the rivers and the swimming pools. Without water: the ground it covers.</p>
+            <div class="diff" id="water-diff" hidden>
+              <span class="diff-text"></span>
+              <button class="btn btn-sm" type="button" data-revert="water" data-i18n="page.settings.revert">Back to map.toml</button>
+            </div>
+          </div>
+
+          <div class="setting-block">
+            <label class="switch"><input type="checkbox" id="maps-fill-holes"><span class="switch-track"></span><span data-i18n="page.content.fillHoles">Fill the holes in the ground</span></label>
+            <p class="help" data-i18n="page.content.fillHolesHelp">Also keeps the on-demand maps without which the ground has a hole (the original state of a place that a pack has remade).</p>
+            <div class="diff" id="maps-fill-holes-diff" hidden>
+              <span class="diff-text"></span>
+              <button class="btn btn-sm" type="button" data-revert="fill-holes" data-i18n="page.settings.revert">Back to map.toml</button>
+            </div>
+          </div>
+
+          <div class="setting-block">
+            <div class="setting-block-head">
+              <h3 data-i18n="page.content.keep">On-demand maps kept</h3>
+              <span class="badge" id="maps-keep-count"></span>
+            </div>
+            <p class="help" data-i18n="page.content.keepHelp">The maps the game loads only when a script asks for them are left out, except these. One name per line; "*" stands for anything.</p>
+            <details class="collapsible-list" id="maps-keep-details">
+              <summary data-i18n="page.content.keepShow">Show and edit the list</summary>
+              <textarea class="field text-area mono" id="maps-keep" rows="10" spellcheck="false" aria-label="On-demand maps kept, one name per line" data-i18n-aria-label="page.content.keepLabel"></textarea>
+            </details>
+            <div class="diff" id="maps-keep-diff" hidden>
+              <span class="diff-text"></span>
+              <button class="btn btn-sm" type="button" data-revert="keep" data-i18n="page.settings.revert">Back to map.toml</button>
+            </div>
+          </div>
+
+          <div class="setting-block">
+            <div class="setting-block-head">
+              <h3 data-i18n="page.content.excludeFolders">Excluded game folders</h3>
+              <span class="badge" id="maps-exclude-folders-count"></span>
+            </div>
+            <textarea class="field text-area mono" id="maps-exclude-folders" rows="2" spellcheck="false" aria-label="Excluded game folders, one per line" data-i18n-aria-label="page.content.excludeFoldersLabel"></textarea>
+            <div class="diff" id="maps-exclude-folders-diff" hidden>
+              <span class="diff-text"></span>
+              <button class="btn btn-sm" type="button" data-revert="exclude-folders" data-i18n="page.settings.revert">Back to map.toml</button>
+            </div>
+          </div>
+
+          <div class="setting-block">
+            <div class="setting-block-head">
+              <h3 data-i18n="page.content.resources">Server resources</h3>
+              <span class="badge" id="resources-folders-count"></span>
+            </div>
+            <p class="help" data-i18n="page.content.resourcesHelp">Their files win over the game's. Unticking a folder takes it out of the render without forgetting it.</p>
+            <ul class="folder-list" id="resources-folders"></ul>
+            <button class="btn btn-sm" type="button" id="resources-add-folder" data-i18n="page.content.addFolder">Add a folder…</button>
+            <div class="diff" id="resources-folders-diff" hidden>
+              <span class="diff-text"></span>
+              <button class="btn btn-sm" type="button" data-revert="resources" data-i18n="page.settings.revert">Back to map.toml</button>
+            </div>
+          </div>
+
+          <div class="setting-block setting-block-file">
+            <span class="path mono selectable" id="config-path"></span>
+            <button class="btn btn-sm" type="button" data-open="config" data-i18n="page.content.openConfig">Open map.toml</button>
+          </div>
+        </div>
+      </details>
+
+      <details class="section" data-section="output">
+        <summary><span class="section-title" data-i18n="page.output.title">Folders and format</span><span class="section-note" id="output-note"></span></summary>
+        <div class="section-body">
+          <div class="setting-block">
+            <h3 id="format-title" data-i18n="page.output.format">Tile format</h3>
+            <div class="choice" id="format-choice" role="group" aria-labelledby="format-title"></div>
+          </div>
+          <div class="slider" id="quality-block">
+            <div class="slider-head"><label for="quality" data-i18n="page.output.quality">WebP quality</label><output id="quality-value" class="num"></output></div>
+            <div class="slider-row">
+              <input type="range" id="quality" min="50" max="100" step="1">
+              <label class="switch switch-compact" title="Every pixel as it is drawn: files several times heavier" data-i18n-title="page.output.losslessHelp"><input type="checkbox" id="lossless"><span class="switch-track"></span><span data-i18n="page.output.lossless">Lossless</span></label>
+              <button class="btn btn-sm btn-ghost" type="button" data-default="quality" title="Back to the default quality" data-i18n="common.default" data-i18n-title="page.output.qualityDefaultHelp">Default</button>
+            </div>
+            <p class="help" id="quality-help"></p>
+          </div>
+          <div class="setting-block">
+            <h3 data-i18n="page.output.mapFolder">Whole map folder</h3>
+            <span class="path mono selectable" id="output-path"></span>
+            <div class="row">
+              <button class="btn btn-sm" type="button" data-change="output" data-i18n="common.change">Change…</button>
+              <button class="btn btn-sm" type="button" data-open="output" data-i18n="common.open">Open</button>
+            </div>
+          </div>
+          <div class="setting-block">
+            <h3 data-i18n="page.output.previewFolder">Preview folder</h3>
+            <p class="help" data-i18n="page.output.previewFolderHelp">Emptied before every preview: its tiles are replaced by those of the rendered zone. A folder that holds a whole map is refused.</p>
+            <span class="path mono selectable" id="preview-path"></span>
+            <div class="row">
+              <button class="btn btn-sm" type="button" data-change="preview" data-i18n="common.change">Change…</button>
+              <button class="btn btn-sm" type="button" data-open="preview" data-i18n="common.open">Open</button>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <p class="settings-footer" id="settings-status" role="status"></p>
+    </aside>
+    <div class="settings-scrim" id="settings-scrim"></div>
+
+    <!-- the map -->
+    <main class="scene" id="scene">
+      <div class="map" id="map"></div>
+
+      <div class="map-top">
+      <div class="panel-float map-toolbar" role="toolbar" aria-label="Map tools" data-i18n-aria-label="page.map.toolbar">
+        <div class="seg" id="source-toggle" role="group" aria-label="Tiles shown" data-i18n-aria-label="page.map.source">
+          <button type="button" data-source="map" aria-pressed="true" data-i18n="page.map.sourceMap">Whole map</button>
+          <button type="button" data-source="preview" aria-pressed="false" data-i18n="page.map.sourcePreview">Preview</button>
+        </div>
+        <span class="map-source-status" id="source-status"></span>
+        <span class="separator"></span>
+        <button class="btn btn-sm" type="button" id="pick-zone" aria-pressed="false" title="Draw a rectangle on the map (or Shift + drag)" data-i18n="page.map.pickZone" data-i18n-title="page.map.pickZoneHelp">Pick a zone</button>
+        <button class="btn btn-sm btn-ghost" type="button" id="frame-zone" hidden title="Show the whole zone" data-i18n="page.map.frameZone" data-i18n-title="page.map.frameZoneHelp">Show the zone</button>
+        <button class="btn btn-sm btn-ghost" type="button" id="clear-zone" hidden title="Clear the zone" data-i18n="page.map.clearZone" data-i18n-title="page.map.clearZoneHelp">Clear</button>
+      </div>
+
+      <div class="panel-float map-legend" id="legend" hidden>
+        <span class="legend-item"><i class="swatch swatch-waiting"></i><span data-i18n="page.map.legendWaiting">Waiting</span></span>
+        <span class="legend-item"><i class="swatch swatch-running"></i><span data-i18n="page.map.legendRunning">In progress</span></span>
+        <span class="legend-item"><i class="swatch swatch-done"></i><span data-i18n="page.map.legendDone">Done</span></span>
+        <span class="legend-item"><i class="swatch swatch-failed"></i><span data-i18n="page.map.legendFailed">Error</span></span>
+        <button class="btn btn-sm btn-ghost" type="button" id="mosaic-toggle" aria-pressed="true" title="Show or hide the progress mosaic" data-i18n="page.map.mosaic" data-i18n-title="page.map.mosaicHelp">Mosaic</button>
+      </div>
+      </div>
+
+      <div class="map-help" id="zone-help" hidden><span data-i18n="page.map.zoneHelp">Draw a rectangle on the map, snapped to the 128 m blocks.</span> <span class="kbd" data-i18n="page.map.escapeKey">Esc</span> <span data-i18n="page.map.toCancel">to cancel.</span></div>
+      <div class="map-empty" id="map-empty" hidden></div>
+
+      <div class="panel-float map-zoom" role="group" aria-label="Zoom" data-i18n-aria-label="page.map.zoom">
+        <button class="btn btn-ghost btn-icon" type="button" id="zoom-in" aria-label="Zoom in" title="Zoom in" data-i18n-aria-label="page.map.zoomIn" data-i18n-title="page.map.zoomIn"></button>
+        <button class="btn btn-ghost btn-icon" type="button" id="zoom-out" aria-label="Zoom out" title="Zoom out" data-i18n-aria-label="page.map.zoomOut" data-i18n-title="page.map.zoomOut"></button>
+        <button class="btn btn-ghost btn-icon" type="button" id="zoom-all" aria-label="Show everything" title="Show everything" data-i18n-aria-label="page.map.zoomAll" data-i18n-title="page.map.zoomAll"></button>
+      </div>
+
+      <div class="panel-float map-hud mono" id="hud" aria-hidden="true">
+        <span class="hud-item"><span class="hud-label">x</span><span class="hud-num" id="hud-x">—</span></span>
+        <span class="hud-item"><span class="hud-label">y</span><span class="hud-num" id="hud-y">—</span></span>
+        <span class="hud-item hud-block"><span class="hud-label" data-i18n="page.map.hudBlock">block</span><span id="hud-block">—</span></span>
+        <span class="hud-item hud-zoom"><span class="hud-label" data-i18n="page.map.hudZoom">zoom</span><span id="hud-zoom">—</span></span>
+        <span class="hud-item hud-scale"><i class="scale-bar" id="scale-bar"></i><span id="scale-text"></span></span>
+      </div>
+    </main>
+
+    <!-- progress -->
+    <aside class="progress" id="progress" aria-label="Progress" data-i18n-aria-label="page.progress.label">
+      <div class="actions" id="actions">
+        <button class="btn btn-primary btn-lg" type="button" id="launch-zone" data-i18n="page.progress.launchZone">Preview the zone</button>
+        <button class="btn btn-lg" type="button" id="launch-map" data-i18n="page.progress.launchMap">Whole map</button>
+        <button class="btn btn-lg" type="button" id="launch-update" data-i18n="page.progress.launchUpdate">Update the map here</button>
+        <button class="btn btn-danger btn-lg" type="button" id="stop" hidden data-i18n="page.progress.stop">Stop</button>
+      </div>
+      <p class="actions-note" id="actions-note"></p>
+
+      <section class="load" id="load" aria-label="Machine load" data-i18n-aria-label="page.load.label">
+        <div class="gauges">
+          <div class="gauge gauge-cpu" id="gauge-cpu"><span class="gauge-name" data-i18n="page.load.cpu">Processor</span><div class="gauge-track"><i></i></div><span class="gauge-value num" id="gauge-cpu-value">—</span></div>
+          <div class="gauge gauge-gpu" id="gauge-gpu"><span class="gauge-name" data-i18n="page.load.gpu">Graphics card</span><div class="gauge-track"><i></i></div><span class="gauge-value num" id="gauge-gpu-value">—</span></div>
+          <div class="gauge gauge-gpu" id="gauge-vram"><span class="gauge-name" data-i18n="page.load.vram">Card memory</span><div class="gauge-track"><i></i></div><span class="gauge-value num" id="gauge-vram-value">—</span></div>
+          <div class="gauge gauge-cpu" id="gauge-ram"><span class="gauge-name" data-i18n="page.load.ram">RAM</span><div class="gauge-track"><i></i></div><span class="gauge-value num" id="gauge-ram-value">—</span></div>
+        </div>
+        <p class="devices" id="devices-line" hidden></p>
+        <div class="chart" id="chart">
+          <div class="chart-legend" aria-hidden="true">
+            <span><i class="key key-cpu"></i><span data-i18n="page.load.cpu">Processor</span></span>
+            <span><i class="key key-gpu"></i><span data-i18n="page.load.gpu">Graphics card</span></span>
+            <span class="grow"></span>
+            <span class="chart-duration" data-i18n="page.load.lastMinutes">Last 2 minutes</span>
+          </div>
+          <div class="chart-plot">
+            <svg id="chart-svg" viewBox="0 0 120 100" preserveAspectRatio="none" role="img" aria-label="Processor and graphics card load over the last two minutes" data-i18n-aria-label="page.load.chart">
+              <path class="chart-grid" d="M0 0.5H120M0 50H120"/>
+              <path class="chart-line chart-cpu" id="chart-cpu" d=""/>
+              <path class="chart-line chart-gpu" id="chart-gpu" d=""/>
+              <path class="chart-marker" id="chart-marker" d=""/>
+            </svg>
+            <span class="chart-axis" data-i18n="page.load.axisTop">100%</span>
+            <div class="chart-tooltip" id="chart-tooltip" hidden></div>
+          </div>
+        </div>
+      </section>
+
+      <div class="progress-body">
+        <div class="job-head">
+          <!-- written by app.js -->
+          <h2 id="job-title">No job</h2>
+          <span class="badge" id="job-badge" hidden></span>
+        </div>
+
+        <div class="fallback-banner" id="fallback-banner" role="status" hidden></div>
+
+        <p class="progress-empty" id="progress-empty" data-i18n="page.progress.empty">Nothing has been started yet. The progress of a render will show here: steps, blocks, speed, time left, and the program's log.</p>
+
+        <ol class="steps" id="steps" aria-label="Render steps" data-i18n-aria-label="page.steps.label">
+          <li data-step="world"><i></i><span data-i18n="page.steps.world">Loading the game</span></li>
+          <li data-step="placements"><i></i><span data-i18n="page.steps.placements">Placements</span></li>
+          <li data-step="blocks"><i></i><span data-i18n="page.steps.blocks">Blocks</span></li>
+          <li data-step="zooms"><i></i><span data-i18n="page.steps.zooms">Zoomed-out levels</span></li>
+          <li data-step="done"><i></i><span data-i18n="page.steps.done">Done</span></li>
+        </ol>
+
+        <div class="completion" id="completion">
+          <div class="completion-row">
+            <span class="completion-percent num" id="percent">—</span>
+            <span class="completion-detail num" id="blocks-text"></span>
+          </div>
+          <div class="progress-bar" id="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-label="Render progress" data-i18n-aria-label="page.progress.bar"><i></i></div>
+        </div>
+
+        <dl class="stats" id="stats">
+          <div><dt data-i18n="page.stats.speed">Speed</dt><dd id="stat-speed">—</dd></div>
+          <div><dt data-i18n="page.stats.elapsed">Time elapsed</dt><dd id="stat-elapsed">—</dd></div>
+          <div><dt data-i18n="page.stats.remaining">Time left</dt><dd id="stat-remaining">—</dd></div>
+          <div><dt data-i18n="page.stats.running">Blocks in progress</dt><dd id="stat-running">—</dd></div>
+          <div class="large"><dt data-i18n="page.stats.tiles">Tiles written</dt><dd id="stat-tiles">—</dd></div>
+          <div class="large"><dt data-i18n="page.stats.errors">Errors</dt><dd id="stat-errors">—</dd></div>
+        </dl>
+
+        <div class="used" id="used" hidden>
+          <h3 data-i18n="page.used.title">What the render took</h3>
+          <dl class="used-list" id="used-list"></dl>
+        </div>
+
+        <details class="errors" id="errors" hidden>
+          <!-- the title is written by app.js (the count of failed blocks) -->
+          <summary><span id="errors-title">Errors</span></summary>
+          <ul id="errors-list"></ul>
+        </details>
+
+        <div class="outcome" id="outcome" hidden>
+          <p id="outcome-text"></p>
+          <button class="btn btn-sm" type="button" id="outcome-open" data-i18n="page.outcome.open">Open the folder</button>
+        </div>
+
+        <!-- what changed in the server's resources since the map recorded them, and its update -->
+        <details class="changes" id="changes" open>
+          <summary><span data-i18n="page.changes.title">Resource changes</span><span class="badge" id="changes-count" hidden></span></summary>
+          <div class="changes-body">
+            <p class="help" data-i18n="page.changes.help">A mapping added, changed or removed in the server's resources since the last recorded state of the map: the list, and the ground to redraw in the map itself.</p>
+            <div class="row changes-buttons">
+              <button class="btn btn-sm" type="button" id="find-changes" data-i18n="page.changes.find">Look for changes</button>
+            </div>
+            <p class="changes-status" id="changes-status" role="status"></p>
+            <ul class="changes-list" id="changes-list" aria-label="Changed resources" data-i18n-aria-label="page.changes.list"></ul>
+            <p class="changes-note" id="changes-note" hidden></p>
+            <div class="row changes-buttons" id="changes-actions" hidden>
+              <button class="btn btn-sm btn-primary" type="button" id="update-changes"></button>
+              <button class="btn btn-sm" type="button" id="record-state" data-i18n="page.changes.record">Record the current state</button>
+            </div>
+          </div>
+        </details>
+
+        <details class="log" id="log">
+          <summary><span data-i18n="page.log.title">Log</span><span class="badge" id="log-count">0</span><button class="btn btn-sm btn-ghost" type="button" id="log-expand" aria-pressed="false" title="Enlarge or shrink the log" data-i18n="page.log.expand" data-i18n-title="page.log.expandHelp">Enlarge</button></summary>
+          <div class="log-lines mono selectable" id="log-lines" tabindex="0" aria-label="Program output" data-i18n-aria-label="page.log.lines"></div>
+        </details>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- confirmations, and the game or key actions of a check; app.js writes the two buttons of each question -->
+<dialog class="dialog" id="dialog" aria-labelledby="dialog-title">
+  <div class="dialog-frame">
+    <h2 id="dialog-title"></h2>
+    <div class="dialog-body" id="dialog-body"></div>
+    <div class="dialog-actions">
+      <button class="btn" type="button" id="dialog-no">Cancel</button>
+      <button class="btn btn-primary" type="button" id="dialog-yes">Confirm</button>
+    </div>
+  </div>
+</dialog>
+
+<div class="check-popover panel-float" id="check-popover" hidden></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<!-- after "Quit" -->
+<div class="end-screen" id="end-screen" hidden>
+  <img src="icon.png" alt="" width="56" height="56">
+  <h2 data-i18n="page.end.title">BTMS has stopped</h2>
+  <p data-i18n="page.end.text">You can close this window.</p>
+</div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

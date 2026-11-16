@@ -1,0 +1,65 @@
+name: Translation
+description: A wrong, unclear or missing translation, or a new language you would like.
+labels: [translation]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping with the translations. If you would like to fix it yourself, a pull request is very welcome: [Adding a language](https://github.com/BuuDevOff/BTMS/blob/main/CONTRIBUTING.md#adding-a-language) says where every text lives.
+
+  - type: dropdown
+    id: language
+    attributes:
+      label: Language
+      options:
+        - English
+        - Français (French)
+        - Deutsch (German)
+        - Nederlands (Dutch)
+        - Русский (Russian)
+        - Svenska (Swedish)
+        - Español (Spanish)
+        - A new language (name it below)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      multiple: true
+      options:
+        - Interface
+        - Viewer page (the index.html next to tiles.json)
+        - Installer
+    validations:
+      required: true
+
+  - type: textarea
+    id: current
+    attributes:
+      label: Current text
+      description: The text as BTMS shows it now, and where you saw it (panel, button, message). A screenshot helps. Leave it empty for a new language.
+
+  - type: textarea
+    id: suggested
+    attributes:
+      label: Suggested text
+      description: What it should say. For a new language, name it and say whether you can translate it.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: BTMS version
+      description: The output of `btms --version`, or the version shown in the header of the interface.
+      placeholder: btms 1.0.0
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched the existing issues and this is not already reported.
+          required: true

@@ -1,0 +1,120 @@
+name: Bug report
+description: Something does not work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug. The more of this form you fill in, the easier the problem is to reproduce.
+
+        **Never attach or paste `magic.dat`, decryption keys, game files or protected resource files.** They are not needed to describe a problem, and they will be removed.
+
+        Security problems go through a [private report](https://github.com/BuuDevOff/BTMS/security/advisories/new), not a public issue.
+
+  - type: input
+    id: version
+    attributes:
+      label: BTMS version
+      description: The output of `btms --version`, or the version shown in the header of the interface.
+      placeholder: btms 1.0.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How you installed BTMS
+      options:
+        - Installer (BTMS-Setup-<version>-x64.exe)
+        - Portable zip
+        - Built from source
+    validations:
+      required: true
+
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      description: Run `winver` to see it.
+      placeholder: Windows 11 24H2 (build 26100)
+    validations:
+      required: true
+
+  - type: input
+    id: gpu
+    attributes:
+      label: Graphics card
+      description: The card and its driver version, as shown in the interface, or "none" if BTMS rendered on the processor.
+      placeholder: NVIDIA GeForce RTX 3060, driver 581.57, DirectX 12
+    validations:
+      required: true
+
+  - type: dropdown
+    id: frontend
+    attributes:
+      label: Interface or command line
+      options:
+        - Interface
+        - Command line
+        - Both
+        - Installer
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Command or action
+      description: |
+        Command line: paste the full command, for example `btms tiles output\test --zone 0,-1536,1024,-512`.
+        Interface: say which action you started (preview of a zone, whole map, update, a report…) and the settings you changed.
+        Installer: say which options you ticked, and at which step it went wrong.
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead. For a defect in the tiles, add a screenshot and the coordinates or block shown in the interface.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+
+  - type: textarea
+    id: map-toml
+    attributes:
+      label: map.toml
+      description: Your `map.toml`, if you changed it. You can replace the paths of your resource folders with placeholders.
+      render: toml
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: The output of the command, or the Log panel of the interface. Include the lines around the first error.
+      render: text
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Anything else that may help, for example the kind of FiveM resource involved.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched the existing issues and this bug is not already reported.
+          required: true
+        - label: This report contains no keys, `magic.dat`, game files or protected resource files.
+          required: true

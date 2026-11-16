@@ -1,0 +1,64 @@
+name: Feature request
+description: Suggest a new feature or an improvement.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for the suggestion. For an open question or an idea that is not yet a clear request, [Discussions](https://github.com/BuuDevOff/BTMS/discussions) may be a better place.
+
+        BTMS reads the game's files offline and read-only, and only unprotected resources. Requests to decrypt or work around resources protected by the FiveM asset escrow (`FXAP`), to attach to the game or FiveM, or to distribute decryption keys will be closed.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Tiles and rendering
+        - FiveM resources
+        - Interface
+        - Viewer page
+        - Command line
+        - Installer
+        - map.toml
+        - Translations
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do, and what makes it hard today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What you would like BTMS to do. A command, a `map.toml` key or a mock-up of the interface is welcome.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Other solutions or workarounds you considered.
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Screenshots, examples, links.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched the existing issues and discussions and this is not already suggested.
+          required: true

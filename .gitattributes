@@ -1,0 +1,31 @@
+# Normalize line endings: text files are stored with LF in the repository.
+* text=auto
+
+# Source and documentation: always LF, on every platform.
+*.rs    text eol=lf
+*.toml  text eol=lf
+*.md    text eol=lf
+*.js    text eol=lf
+*.css   text eol=lf
+*.html  text eol=lf
+*.json  text eol=lf
+*.wgsl  text eol=lf
+*.svg   text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.txt   text eol=lf
+Cargo.lock text eol=lf
+LICENSE    text eol=lf
+
+# Windows scripts need CRLF to run correctly in cmd.exe.
+*.cmd   text eol=crlf
+*.bat   text eol=crlf
+*.iss   text eol=crlf
+
+# Binary files: never converted or diffed as text.
+*.png   binary
+*.webp  binary
+*.jpg   binary
+*.jpeg  binary
+*.ico   binary
+*.zip   binary

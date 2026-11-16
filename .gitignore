@@ -1,0 +1,35 @@
+# Build output
+/target
+
+# Renders and previews (default output folder)
+/output
+
+# Local configuration
+map.local.toml
+
+# Decryption keys and magic.dat: never part of the repository
+*.dat
+keys/
+
+# Logs
+*.log
+
+# Editors
+.vscode/
+.idea/
+.fleet/
+.zed/
+*.swp
+*.swo
+*~
+
+# Operating systems
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+
+# Installer and release packages
+/dist

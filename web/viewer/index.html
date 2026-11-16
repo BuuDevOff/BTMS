@@ -1,0 +1,2113 @@
+<!doctype html>
+<!--
+  ____                 ____
+ | __ )  _   _  _   _ |  _ \   ___ __   __
+ |  _ \ | | | || | | || | | | / _ \\ \ / /
+ | |_) || |_| || |_| || |_| ||  __/ \ V /
+ |____/  \__,_| \__,_||____/  \___|  \_/
+
+ BTMS · Buu's Tiles Map Scanner
+ Author : BuuDevOff · https://github.com/BuuDevOff
+ SPDX-License-Identifier: GPL-3.0-only
+-->
+<!--
+  The web map of a folder of tiles: BTMS writes this page next to `tiles.json`, and the folder can
+  then be put as it is on any static web server, at its root or in a sub-folder.
+
+  - One file, no build step, nothing asked from the network but the folder's own files.
+  - The BTMS grid: zooms 0 to `zmax`, tiles of `tile` px; the tile (z, tx, ty) covers
+    x in [tx·W, (tx+1)·W) and y in [ty·W, (ty+1)·W) with W = 32 · 2^(zmax − z) m, ty growing north.
+  - Files `<z>/<tx>/<ty>.<extension>` (`extension` of the manifest); a manifest without it is an
+    older folder: `.jpg`, then `.png`. No file: the tile is empty.
+  - All addresses are relative to the folder of `tiles.json`.
+  - Languages: English, French, German, Dutch, Russian, Swedish and Spanish, from the dictionaries
+    below. The page starts in the browser's language and keeps the visitor's choice in
+    `localStorage` (`btms.language`).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#070a0e">
+<meta name="description" content="A top-down map of San Andreas, drawn from the game's own files.">
+<title>BTMS · Map</title>
+<link rel="icon" type="image/png" href="data:image/png;base64,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">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #070a0e;
+    --bg-2: #0b1016;
+    --overlay: rgba(10, 14, 20, 0.86);
+    --overlay-strong: rgba(10, 14, 20, 0.94);
+    --line: rgba(148, 163, 184, 0.1);
+    --line-2: rgba(148, 163, 184, 0.18);
+    --line-3: rgba(148, 163, 184, 0.3);
+    --text: #e6ecf2;
+    --text-2: #b4c0cc;
+    --muted: #8693a2;
+    --dim: #5a6573;
+    --accent: #8fb3d9;
+    --accent-2: #b9d1ea;
+    --accent-soft: rgba(143, 179, 217, 0.14);
+    --amber: #d0a85c;
+    --red: #c94f55;
+    --radius: 10px;
+    --gap: 12px;
+    --btn: 40px;
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-title: Bahnschrift, "DIN Alternate", "Segoe UI", system-ui, sans-serif;
+    --safe-t: env(safe-area-inset-top, 0px);
+    --safe-r: env(safe-area-inset-right, 0px);
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --safe-l: env(safe-area-inset-left, 0px);
+  }
+  @media (pointer: coarse) {
+    :root { --btn: 44px; }
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.4 var(--font);
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body { position: fixed; inset: 0; }
+
+  /* the map fills the window; nothing scrolls */
+  .map {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(120% 100% at 50% 40%, var(--bg-2), var(--bg));
+  }
+  .map canvas {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: block;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    cursor: grab;
+    outline: none;
+  }
+  .map canvas.grabbing { cursor: grabbing; }
+  .map canvas:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+
+  /* the centre of the view, on touch screens (no pointer hovers there: the coordinates are its own) */
+  .crosshair {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 22px;
+    height: 22px;
+    margin: -11px 0 0 -11px;
+    pointer-events: none;
+    display: none;
+    opacity: 0.75;
+    background:
+      linear-gradient(var(--accent-2), var(--accent-2)) center / 1.5px 100% no-repeat,
+      linear-gradient(var(--accent-2), var(--accent-2)) center / 100% 1.5px no-repeat;
+    filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.9));
+  }
+  .crosshair.visible { display: block; }
+
+  .panel {
+    position: absolute;
+    background: var(--overlay);
+    border: 1px solid var(--line-2);
+    border-radius: var(--radius);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+
+  /* title, top left */
+  .title {
+    top: calc(var(--gap) + var(--safe-t));
+    left: calc(var(--gap) + var(--safe-l));
+    max-width: calc(100% - 2 * var(--gap) - var(--btn) - 12px - var(--safe-l) - var(--safe-r));
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 8px 7px 12px;
+  }
+  .title h1 {
+    margin: 0;
+    font: 600 15px/1.2 var(--font-title);
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .title h1 .dot { color: var(--accent); padding: 0 1px; }
+  .status {
+    color: var(--amber);
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .status:empty { display: none; }
+
+  /* what the folder is: a small disclosure */
+  /* its body hangs under the whole title panel (the positioned box), not under the button */
+  .info { position: static; }
+  .info summary {
+    list-style: none;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    color: var(--muted);
+    cursor: pointer;
+    user-select: none;
+  }
+  .info summary::-webkit-details-marker { display: none; }
+  .info summary:hover, .info[open] summary { color: var(--text); background: var(--accent-soft); }
+  .info summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .info-body {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: -1px;
+    width: min(340px, calc(100vw - 2 * var(--gap) - var(--safe-l) - var(--safe-r)));
+    padding: 12px 14px;
+    background: var(--overlay-strong);
+    border: 1px solid var(--line-2);
+    border-radius: var(--radius);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    font-size: 13px;
+    color: var(--text-2);
+  }
+  .info-body dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; }
+  .info-body dt { color: var(--muted); }
+  .info-body dd { margin: 0; color: var(--text); overflow-wrap: anywhere; }
+  .info-body p { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
+
+  /* the language of the page, beside the info button and drawn like it: a globe and the code of
+     the language; the list itself is the browser's own, from an invisible select over them */
+  .language {
+    position: relative;
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 4px;
+    height: 28px;
+    margin-left: -4px;
+    padding: 0 6px;
+    border-radius: 7px;
+    color: var(--muted);
+    font: 600 11px/1 var(--font-title);
+    letter-spacing: 0.06em;
+  }
+  .language svg { width: 16px; height: 16px; flex: none; }
+  .language:hover, .language:focus-within { color: var(--text); background: var(--accent-soft); }
+  .language:has(select:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .language select {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    cursor: pointer;
+    color: var(--text);
+    background: var(--bg-2);
+    /* 16 px: a smaller select makes iOS zoom the whole page when it opens */
+    font: 16px var(--font);
+  }
+
+  /* zoom buttons, right */
+  .controls {
+    position: absolute;
+    top: calc(var(--gap) + var(--safe-t));
+    right: calc(var(--gap) + var(--safe-r));
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .group {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--overlay);
+    border: 1px solid var(--line-2);
+    border-radius: var(--radius);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+  .group button + button { border-top: 1px solid var(--line); }
+  .controls button {
+    display: grid;
+    place-items: center;
+    width: var(--btn);
+    height: var(--btn);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-2);
+    cursor: pointer;
+    font: inherit;
+  }
+  .controls button:hover { color: var(--text); background: var(--accent-soft); }
+  .controls button:active { background: rgba(143, 179, 217, 0.24); }
+  .controls button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .controls button:disabled { color: var(--dim); cursor: default; background: transparent; }
+  .controls svg { width: 18px; height: 18px; }
+
+  /* pointer, zoom and scale, bottom left */
+  .hud {
+    left: calc(var(--gap) + var(--safe-l));
+    bottom: calc(var(--gap) + var(--safe-b));
+    max-width: calc(100% - 2 * var(--gap) - var(--safe-l) - var(--safe-r));
+    display: flex;
+    align-items: center;
+    height: 32px;
+    overflow: hidden;
+    color: var(--text-2);
+    font-size: 12.5px;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+  }
+  .hud-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 100%;
+    padding: 0 12px;
+    border-left: 1px solid var(--line);
+  }
+  .hud-item:first-child { border-left: 0; }
+  .label { color: var(--dim); }
+  .num { display: inline-block; min-width: 7.5ch; text-align: right; color: var(--text); }
+  .hud-zoom { color: var(--text); }
+  .scale-bar {
+    display: inline-block;
+    height: 7px;
+    border: 1.5px solid var(--text-2);
+    border-top: 0;
+    min-width: 8px;
+  }
+  .scale-text { color: var(--text); min-width: 6ch; }
+
+  /* a message over the map (no manifest, nothing to show…) */
+  .message {
+    position: absolute;
+    top: calc(var(--gap) + var(--safe-t) + 54px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: calc(100% - 2 * var(--gap));
+    padding: 10px 14px;
+    background: var(--overlay-strong);
+    border: 1px solid var(--line-3);
+    border-left: 3px solid var(--amber);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 13px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  }
+  .message[hidden] { display: none; }
+
+  noscript {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    text-align: center;
+    color: var(--text-2);
+  }
+
+  /* phones: a narrower HUD, buttons lower so the thumb reaches them */
+  @media (max-width: 560px) {
+    :root { --gap: 10px; }
+    .title h1 { font-size: 14px; }
+    .hud { font-size: 12px; height: 30px; }
+    .hud-item { padding: 0 9px; gap: 4px; }
+    .num { min-width: 6.5ch; }
+    .hud-zoom-item { display: none; }
+    .controls {
+      top: auto;
+      bottom: calc(var(--gap) + var(--safe-b) + 40px);
+    }
+    .message { top: calc(var(--gap) + var(--safe-t) + 50px); }
+  }
+  @media (max-width: 360px) {
+    .hud-scale { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<main class="map" id="map" aria-label="Map" data-i18n-aria-label="page.map">
+  <div class="crosshair" id="crosshair" aria-hidden="true"></div>
+</main>
+
+<header class="title panel">
+  <h1>BTMS <span class="dot">·</span> <span data-i18n="page.map">Map</span></h1>
+  <span class="status" id="status" role="status"></span>
+  <details class="info" id="info">
+    <summary title="About this map" aria-label="About this map" data-i18n-title="page.about" data-i18n-aria-label="page.about">
+      <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 9v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="6.2" r="1.1" fill="currentColor"/></svg>
+    </summary>
+    <div class="info-body">
+      <dl id="info-list"><dt data-i18n="info.tiles">Tiles</dt><dd>—</dd></dl>
+      <p data-i18n="page.help">Drag to move, scroll or pinch to zoom, double-click or double-tap to zoom in, tap with two fingers to zoom out. Coordinates in game metres: x to the east, y to the north.</p>
+    </div>
+  </details>
+  <div class="language">
+    <svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7.5"/><path d="M2.5 10h15M10 2.5c2.1 2.1 3.2 4.6 3.2 7.5s-1.1 5.4-3.2 7.5c-2.1-2.1-3.2-4.6-3.2-7.5s1.1-5.4 3.2-7.5z"/></svg>
+    <span id="language-code" aria-hidden="true">EN</span>
+    <select id="language-select" title="Language" aria-label="Language" data-i18n-title="page.language" data-i18n-aria-label="page.language"></select>
+  </div>
+</header>
+
+<nav class="controls" aria-label="Zoom" data-i18n-aria-label="page.zoom">
+  <div class="group">
+    <button type="button" id="zoom-in" title="Zoom in" aria-label="Zoom in" data-i18n-title="page.zoomIn" data-i18n-aria-label="page.zoomIn">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    </button>
+    <button type="button" id="zoom-out" title="Zoom out" aria-label="Zoom out" data-i18n-title="page.zoomOut" data-i18n-aria-label="page.zoomOut">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <div class="group">
+    <button type="button" id="zoom-all" title="Show the whole map" aria-label="Show the whole map" data-i18n-title="page.zoomAll" data-i18n-aria-label="page.zoomAll">
+      <svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.5v-4h4M12.5 3.5h4v4M16.5 12.5v4h-4M7.5 16.5h-4v-4"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="hud panel" id="hud" aria-live="off">
+  <div class="hud-item"><span class="label" id="hud-label">x</span><span class="num" id="hud-x">—</span><span class="label">y</span><span class="num" id="hud-y">—</span><span class="label" data-i18n="hud.unit">m</span></div>
+  <div class="hud-item hud-zoom-item"><span class="label" data-i18n="hud.zoom">zoom</span><span class="hud-zoom" id="hud-zoom">—</span></div>
+  <div class="hud-item hud-scale"><span class="scale-bar" id="scale-bar"></span><span class="scale-text" id="scale-text">—</span></div>
+</div>
+
+<div class="message" id="message" role="alert" hidden></div>
+
+<noscript>This map needs JavaScript to be shown.</noscript>
+
+<!--
+  The text of the page, language → key → text. English is the source; a key missing from another
+  language falls back to it. `{name}` is a value put in by the script. A text that depends on a
+  count has one key per plural category of the language (`.one`, `.few`, `.many`, `.other`, as
+  `Intl.PluralRules` names them), and `.other` is the fallback.
+-->
+<script type="application/json" id="dictionaries">
+{
+  "en": {
+    "page.title": "BTMS · Map",
+    "page.map": "Map",
+    "page.roleDescription": "map",
+    "page.canvasLabel": "Map: drag to move, scroll or pinch to zoom, arrow keys and + / − on the keyboard",
+    "page.about": "About this map",
+    "page.help": "Drag to move, scroll or pinch to zoom, double-click or double-tap to zoom in, tap with two fingers to zoom out. Coordinates in game metres: x to the east, y to the north.",
+    "page.zoom": "Zoom",
+    "page.zoomIn": "Zoom in",
+    "page.zoomOut": "Zoom out",
+    "page.zoomAll": "Show the whole map",
+    "page.language": "Language",
+    "hud.centre": "centre x",
+    "hud.zoom": "zoom",
+    "hud.unit": "m",
+    "hud.scale": "{value} m",
+    "info.tiles": "Tiles",
+    "info.quality": "quality {value}",
+    "info.lossless": "lossless",
+    "info.jpegPng": "JPEG and PNG",
+    "info.unknown": "unknown",
+    "info.convertedFrom": "Converted from",
+    "info.maxZoom": "Maximum zoom",
+    "info.maxZoomValue": "{zoom} ({cm} cm per pixel)",
+    "info.render": "Render",
+    "info.finished": "finished",
+    "info.inProgress": "in progress",
+    "info.blocks.one": "{count} block of {size} m",
+    "info.blocks.other": "{count} blocks of {size} m",
+    "info.lighting": "Lighting",
+    "info.sun": "sun at {azimuth}°",
+    "info.elevation": "{elevation}° high",
+    "info.shadows": "cast shadows",
+    "info.lightingOn": "on",
+    "info.lightingNone": "none",
+    "info.server": "Server",
+    "info.resources.one": "{count} resource drawn over the game",
+    "info.resources.other": "{count} resources drawn over the game",
+    "info.format": "Format",
+    "info.noManifest": "without tiles.json (zoom {zoom}, {px} px tiles)",
+    "status.rendering": "Render in progress",
+    "status.filling": "The map is filling in: new tiles arrive every {seconds} s.",
+    "message.noTiles": "This folder holds no tiles yet.",
+    "message.noWebp": "This browser cannot show the WebP images of this map: try an up-to-date browser.",
+    "message.fromDisk": "Page opened from the disk: tiles.json cannot be read, the default settings are used.",
+    "message.unreadable": "tiles.json is unreadable: the default settings are used.",
+    "message.notFound": "tiles.json was not found next to this page: the default settings are used."
+  },
+  "fr": {
+    "page.title": "BTMS · Carte",
+    "page.map": "Carte",
+    "page.roleDescription": "carte",
+    "page.canvasLabel": "Carte : glisser pour se déplacer, molette ou pincement pour zoomer, flèches et + / − au clavier",
+    "page.about": "À propos de cette carte",
+    "page.help": "Glisser pour se déplacer, molette ou pincement pour zoomer, double-clic ou double tape pour s’approcher, deux doigts tapés ensemble pour s’éloigner. Coordonnées en mètres du jeu : x vers l’est, y vers le nord.",
+    "page.zoom": "Zoom",
+    "page.zoomIn": "Zoomer",
+    "page.zoomOut": "Dézoomer",
+    "page.zoomAll": "Tout voir",
+    "page.language": "Langue",
+    "hud.centre": "centre x",
+    "hud.zoom": "zoom",
+    "hud.unit": "m",
+    "hud.scale": "{value} m",
+    "info.tiles": "Tuiles",
+    "info.quality": "qualité {value}",
+    "info.lossless": "sans perte",
+    "info.jpegPng": "JPEG et PNG",
+    "info.unknown": "inconnu",
+    "info.convertedFrom": "Converti de",
+    "info.maxZoom": "Zoom maximal",
+    "info.maxZoomValue": "{zoom} ({cm} cm par pixel)",
+    "info.render": "Rendu",
+    "info.finished": "terminé",
+    "info.inProgress": "en cours",
+    "info.blocks.one": "{count} bloc de {size} m",
+    "info.blocks.other": "{count} blocs de {size} m",
+    "info.lighting": "Lumière",
+    "info.sun": "soleil à {azimuth}°",
+    "info.elevation": "{elevation}° de hauteur",
+    "info.shadows": "ombres portées",
+    "info.lightingOn": "oui",
+    "info.lightingNone": "aucune",
+    "info.server": "Serveur",
+    "info.resources.one": "{count} ressource dessinée par-dessus le jeu",
+    "info.resources.other": "{count} ressources dessinées par-dessus le jeu",
+    "info.format": "Format",
+    "info.noManifest": "sans tiles.json (zoom {zoom}, tuiles de {px} px)",
+    "status.rendering": "Rendu en cours",
+    "status.filling": "La carte se remplit : les nouvelles tuiles arrivent toutes les {seconds} s.",
+    "message.noTiles": "Ce dossier ne contient encore aucune tuile.",
+    "message.noWebp": "Ce navigateur ne sait pas afficher les images WebP de cette carte : essayez un navigateur à jour.",
+    "message.fromDisk": "Page ouverte depuis le disque : tiles.json ne peut pas être lu, les réglages par défaut sont pris.",
+    "message.unreadable": "tiles.json est illisible : les réglages par défaut sont pris.",
+    "message.notFound": "tiles.json est introuvable à côté de cette page : les réglages par défaut sont pris."
+  },
+  "de": {
+    "page.title": "BTMS · Karte",
+    "page.map": "Karte",
+    "page.roleDescription": "Karte",
+    "page.canvasLabel": "Karte: Ziehen zum Verschieben, Mausrad oder Zwei-Finger-Geste zum Zoomen, Pfeiltasten und + / − auf der Tastatur",
+    "page.about": "Über diese Karte",
+    "page.help": "Ziehen zum Verschieben, Mausrad oder Zwei-Finger-Geste zum Zoomen, Doppelklick oder doppeltes Tippen zum Hineinzoomen, Tippen mit zwei Fingern zum Herauszoomen. Koordinaten in Metern der Spielwelt: x nach Osten, y nach Norden.",
+    "page.zoom": "Zoom",
+    "page.zoomIn": "Hineinzoomen",
+    "page.zoomOut": "Herauszoomen",
+    "page.zoomAll": "Ganze Karte anzeigen",
+    "page.language": "Sprache",
+    "hud.centre": "Mitte x",
+    "hud.zoom": "Zoom",
+    "hud.unit": "m",
+    "hud.scale": "{value} m",
+    "info.tiles": "Kacheln",
+    "info.quality": "Qualität {value}",
+    "info.lossless": "verlustfrei",
+    "info.jpegPng": "JPEG und PNG",
+    "info.unknown": "unbekannt",
+    "info.convertedFrom": "Konvertiert aus",
+    "info.maxZoom": "Höchste Zoomstufe",
+    "info.maxZoomValue": "{zoom} ({cm} cm pro Pixel)",
+    "info.render": "Rendervorgang",
+    "info.finished": "fertig",
+    "info.inProgress": "läuft",
+    "info.blocks.one": "{count} Block zu {size} m",
+    "info.blocks.other": "{count} Blöcke zu {size} m",
+    "info.lighting": "Beleuchtung",
+    "info.sun": "Sonnenazimut {azimuth}°",
+    "info.elevation": "Sonnenhöhe {elevation}°",
+    "info.shadows": "Schlagschatten",
+    "info.lightingOn": "ein",
+    "info.lightingNone": "keine",
+    "info.server": "Server",
+    "info.resources.one": "{count} Ressource über das Spiel gezeichnet",
+    "info.resources.other": "{count} Ressourcen über das Spiel gezeichnet",
+    "info.format": "Format",
+    "info.noManifest": "ohne tiles.json (Zoomstufe {zoom}, Kacheln zu {px} px)",
+    "status.rendering": "Rendervorgang läuft",
+    "status.filling": "Die Karte füllt sich: Alle {seconds} s kommen neue Kacheln hinzu.",
+    "message.noTiles": "Dieser Ordner enthält noch keine Kacheln.",
+    "message.noWebp": "Dieser Browser kann die WebP-Bilder dieser Karte nicht anzeigen: Verwenden Sie einen aktuellen Browser.",
+    "message.fromDisk": "Seite vom Datenträger geöffnet: tiles.json kann nicht gelesen werden, es gelten die Standardeinstellungen.",
+    "message.unreadable": "tiles.json ist nicht lesbar: Es gelten die Standardeinstellungen.",
+    "message.notFound": "tiles.json wurde neben dieser Seite nicht gefunden: Es gelten die Standardeinstellungen."
+  },
+  "nl": {
+    "page.title": "BTMS · Kaart",
+    "page.map": "Kaart",
+    "page.roleDescription": "kaart",
+    "page.canvasLabel": "Kaart: slepen om te verschuiven, scrollen of knijpen om te zoomen, pijltoetsen en + / − op het toetsenbord",
+    "page.about": "Over deze kaart",
+    "page.help": "Slepen om te verschuiven, scrollen of knijpen om te zoomen, dubbelklikken of dubbeltikken om in te zoomen, met twee vingers tegelijk tikken om uit te zoomen. Coördinaten in meter van het spel: x naar het oosten, y naar het noorden.",
+    "page.zoom": "Zoom",
+    "page.zoomIn": "Inzoomen",
+    "page.zoomOut": "Uitzoomen",
+    "page.zoomAll": "Hele kaart tonen",
+    "page.language": "Taal",
+    "hud.centre": "midden x",
+    "hud.zoom": "zoom",
+    "hud.unit": "m",
+    "hud.scale": "{value} m",
+    "info.tiles": "Tegels",
+    "info.quality": "kwaliteit {value}",
+    "info.lossless": "verliesvrij",
+    "info.jpegPng": "JPEG en PNG",
+    "info.unknown": "onbekend",
+    "info.convertedFrom": "Geconverteerd van",
+    "info.maxZoom": "Maximaal zoomniveau",
+    "info.maxZoomValue": "{zoom} ({cm} cm per pixel)",
+    "info.render": "Render",
+    "info.finished": "klaar",
+    "info.inProgress": "bezig",
+    "info.blocks.one": "{count} blok van {size} m",
+    "info.blocks.other": "{count} blokken van {size} m",
+    "info.lighting": "Belichting",
+    "info.sun": "zon op {azimuth}°",
+    "info.elevation": "{elevation}° hoog",
+    "info.shadows": "slagschaduwen",
+    "info.lightingOn": "aan",
+    "info.lightingNone": "geen",
+    "info.server": "Server",
+    "info.resources.one": "{count} resource over het spel heen getekend",
+    "info.resources.other": "{count} resources over het spel heen getekend",
+    "info.format": "Formaat",
+    "info.noManifest": "zonder tiles.json (zoom {zoom}, tegels van {px} px)",
+    "status.rendering": "Render bezig",
+    "status.filling": "De kaart wordt aangevuld: elke {seconds} s komen er nieuwe tegels bij.",
+    "message.noTiles": "Deze map bevat nog geen tegels.",
+    "message.noWebp": "Deze browser kan de WebP-afbeeldingen van deze kaart niet weergeven: probeer een recente browser.",
+    "message.fromDisk": "Pagina geopend vanaf de schijf: tiles.json kan niet worden gelezen, de standaardinstellingen worden gebruikt.",
+    "message.unreadable": "tiles.json is onleesbaar: de standaardinstellingen worden gebruikt.",
+    "message.notFound": "tiles.json is niet gevonden naast deze pagina: de standaardinstellingen worden gebruikt."
+  },
+  "ru": {
+    "page.title": "BTMS · Карта",
+    "page.map": "Карта",
+    "page.roleDescription": "карта",
+    "page.canvasLabel": "Карта: перетаскивание — перемещение, колесо мыши или щипок — масштаб, стрелки и + / − на клавиатуре",
+    "page.about": "Об этой карте",
+    "page.help": "Перетаскивайте карту, чтобы перемещаться; колесо мыши или щипок меняют масштаб; двойной щелчок или двойное касание приближают, касание двумя пальцами отдаляет. Координаты в игровых метрах: x — на восток, y — на север.",
+    "page.zoom": "Масштаб",
+    "page.zoomIn": "Приблизить",
+    "page.zoomOut": "Отдалить",
+    "page.zoomAll": "Показать всю карту",
+    "page.language": "Язык",
+    "hud.centre": "центр x",
+    "hud.zoom": "масштаб",
+    "hud.unit": "m",
+    "hud.scale": "{value} m",
+    "info.tiles": "Тайлы",
+    "info.quality": "качество {value}",
+    "info.lossless": "без потерь",
+    "info.jpegPng": "JPEG и PNG",
+    "info.unknown": "неизвестно",
+    "info.convertedFrom": "Преобразовано из",
+    "info.maxZoom": "Максимальный масштаб",
+    "info.maxZoomValue": "{zoom} ({cm} cm на пиксель)",
+    "info.render": "Рендер",
+    "info.finished": "завершён",
+    "info.inProgress": "идёт",
+    "info.blocks.one": "{count} блок по {size} m",
+    "info.blocks.few": "{count} блока по {size} m",
+    "info.blocks.many": "{count} блоков по {size} m",
+    "info.blocks.other": "{count} блока по {size} m",
+    "info.lighting": "Освещение",
+    "info.sun": "азимут солнца {azimuth}°",
+    "info.elevation": "высота {elevation}°",
+    "info.shadows": "отбрасываемые тени",
+    "info.lightingOn": "включено",
+    "info.lightingNone": "нет",
+    "info.server": "Сервер",
+    "info.resources.one": "{count} ресурс поверх игры",
+    "info.resources.few": "{count} ресурса поверх игры",
+    "info.resources.many": "{count} ресурсов поверх игры",
+    "info.resources.other": "{count} ресурса поверх игры",
+    "info.format": "Формат",
+    "info.noManifest": "без tiles.json (масштаб {zoom}, тайлы по {px} px)",
+    "status.rendering": "Идёт рендер",
+    "status.filling": "Карта заполняется: новые тайлы появляются каждые {seconds} s.",
+    "message.noTiles": "В этой папке пока нет тайлов.",
+    "message.noWebp": "Этот браузер не показывает изображения WebP этой карты: попробуйте обновлённый браузер.",
+    "message.fromDisk": "Страница открыта с диска: прочитать tiles.json не удаётся, используются настройки по умолчанию.",
+    "message.unreadable": "Не удаётся прочитать tiles.json: используются настройки по умолчанию.",
+    "message.notFound": "Файл tiles.json не найден рядом с этой страницей: используются настройки по умолчанию."
+  },
+  "sv": {
+    "page.title": "BTMS · Karta",
+    "page.map": "Karta",
+    "page.roleDescription": "karta",
+    "page.canvasLabel": "Karta: dra för att flytta, scrolla eller nyp för att zooma, piltangenterna och + / − på tangentbordet",
+    "page.about": "Om den här kartan",
+    "page.help": "Dra för att flytta, scrolla eller nyp för att zooma, dubbelklicka eller dubbeltryck för att zooma in, tryck med två fingrar samtidigt för att zooma ut. Koordinater i spelets meter: x österut, y norrut.",
+    "page.zoom": "Zoom",
+    "page.zoomIn": "Zooma in",
+    "page.zoomOut": "Zooma ut",
+    "page.zoomAll": "Visa hela kartan",
+    "page.language": "Språk",
+    "hud.centre": "centrum x",
+    "hud.zoom": "zoom",
+    "hud.unit": "m",
+    "hud.scale": "{value} m",
+    "info.tiles": "Plattor",
+    "info.quality": "kvalitet {value}",
+    "info.lossless": "förlustfri",
+    "info.jpegPng": "JPEG och PNG",
+    "info.unknown": "okänt",
+    "info.convertedFrom": "Konverterad från",
+    "info.maxZoom": "Största zoomnivå",
+    "info.maxZoomValue": "{zoom} ({cm} cm per pixel)",
+    "info.render": "Rendering",
+    "info.finished": "klar",
+    "info.inProgress": "pågår",
+    "info.blocks.one": "{count} block på {size} m",
+    "info.blocks.other": "{count} block på {size} m",
+    "info.lighting": "Belysning",
+    "info.sun": "sol från {azimuth}°",
+    "info.elevation": "solhöjd {elevation}°",
+    "info.shadows": "slagskuggor",
+    "info.lightingOn": "på",
+    "info.lightingNone": "ingen",
+    "info.server": "Server",
+    "info.resources.one": "{count} resurs ritad ovanpå spelet",
+    "info.resources.other": "{count} resurser ritade ovanpå spelet",
+    "info.format": "Format",
+    "info.noManifest": "utan tiles.json (zoomnivå {zoom}, plattor på {px} px)",
+    "status.rendering": "Rendering pågår",
+    "status.filling": "Kartan fylls på: nya plattor kommer in med {seconds} s mellanrum.",
+    "message.noTiles": "Den här mappen innehåller inga plattor än.",
+    "message.noWebp": "Den här webbläsaren kan inte visa kartans WebP-bilder: prova en uppdaterad webbläsare.",
+    "message.fromDisk": "Sidan öppnades från disken: tiles.json kan inte läsas, standardinställningarna används.",
+    "message.unreadable": "Det går inte att läsa tiles.json: standardinställningarna används.",
+    "message.notFound": "Ingen tiles.json hittades bredvid den här sidan: standardinställningarna används."
+  },
+  "es": {
+    "page.title": "BTMS · Mapa",
+    "page.map": "Mapa",
+    "page.roleDescription": "mapa",
+    "page.canvasLabel": "Mapa: arrastre para moverse, rueda o pellizco para hacer zoom, teclas de flecha y + / − del teclado",
+    "page.about": "Acerca de este mapa",
+    "page.help": "Arrastre para moverse, use la rueda o pellizque para hacer zoom, haga doble clic o doble toque para acercar y toque con dos dedos a la vez para alejar. Coordenadas en metros del juego: x hacia el este, y hacia el norte.",
+    "page.zoom": "Zoom",
+    "page.zoomIn": "Acercar",
+    "page.zoomOut": "Alejar",
+    "page.zoomAll": "Ver todo el mapa",
+    "page.language": "Idioma",
+    "hud.centre": "centro x",
+    "hud.zoom": "zoom",
+    "hud.unit": "m",
+    "hud.scale": "{value} m",
+    "info.tiles": "Teselas",
+    "info.quality": "calidad {value}",
+    "info.lossless": "sin pérdida",
+    "info.jpegPng": "JPEG y PNG",
+    "info.unknown": "desconocido",
+    "info.convertedFrom": "Convertido de",
+    "info.maxZoom": "Zoom máximo",
+    "info.maxZoomValue": "{zoom} ({cm} cm por píxel)",
+    "info.render": "Renderizado",
+    "info.finished": "terminado",
+    "info.inProgress": "en curso",
+    "info.blocks.one": "{count} bloque de {size} m",
+    "info.blocks.other": "{count} bloques de {size} m",
+    "info.lighting": "Iluminación",
+    "info.sun": "sol a {azimuth}°",
+    "info.elevation": "{elevation}° de altura",
+    "info.shadows": "sombras proyectadas",
+    "info.lightingOn": "activada",
+    "info.lightingNone": "ninguna",
+    "info.server": "Servidor",
+    "info.resources.one": "{count} recurso dibujado sobre el juego",
+    "info.resources.other": "{count} recursos dibujados sobre el juego",
+    "info.format": "Formato",
+    "info.noManifest": "sin tiles.json (zoom {zoom}, teselas de {px} px)",
+    "status.rendering": "Renderizado en curso",
+    "status.filling": "El mapa se está completando: llegan teselas nuevas cada {seconds} s.",
+    "message.noTiles": "Esta carpeta aún no contiene ninguna tesela.",
+    "message.noWebp": "Este navegador no puede mostrar las imágenes WebP de este mapa: pruebe con un navegador actualizado.",
+    "message.fromDisk": "Página abierta desde el disco: no se puede leer tiles.json, se usan los ajustes predeterminados.",
+    "message.unreadable": "No se puede leer tiles.json: se usan los ajustes predeterminados.",
+    "message.notFound": "No se encuentra tiles.json junto a esta página: se usan los ajustes predeterminados."
+  }
+}
+</script>
+
+<script>
+'use strict';
+(() => {
+  // ----------------------------------------------------------------------------------- constants
+
+  /** The grid when the manifest does not say: zoom 9 at most, 512 px, 32 m per tile at zoom 9. */
+  const DEFAULT_ZMAX = 9;
+  const DEFAULT_TILE_PX = 512;
+  const DEFAULT_ZMAX_SIDE = 32;
+  /** San Andreas, the last resort when nothing tells where the tiles are. */
+  const SAN_ANDREAS = [-4096, -4096, 4608, 8192];
+  /** Blocks of the render (one tile of zoom 7): a zone is widened to them. */
+  const BLOCK = 128;
+  /** Images kept decoded (about 1 MB each), and loads at the same time. */
+  const SMALL_SCREEN = Math.min(screen.width, screen.height) < 600 || (navigator.deviceMemory || 8) <= 4;
+  const MAX_IMAGES = SMALL_SCREEN ? 140 : 320;
+  const MAX_KEYS = 12000;
+  const MAX_LOADS = 8;
+  /** A tile is asked again this many times when the server fails (not when it says "missing"). */
+  const MAX_TRIES = 3;
+  /** A load whose tile left the screen this long ago is given up. */
+  const ABANDON_MS = 400;
+  /** While BTMS is still writing, the manifest is read again this often. */
+  const REFRESH_MS = 30000;
+  /** Finer tiles than the screen needs are never asked beyond this pixel ratio (phones are often 3). */
+  const TILE_DPR = 2;
+  const REDUCED_MOTION = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const $ = (id) => document.getElementById(id);
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const numberFormats = new Map();
+  /** A number the way the page's language writes it: `1,234.5` in English, `1 234,5` in French. */
+  const formatNumber = (v, d = 0) => {
+    let f = numberFormats.get(d);
+    if (!f) {
+      f = new Intl.NumberFormat(language, { minimumFractionDigits: d, maximumFractionDigits: d });
+      numberFormats.set(d, f);
+    }
+    return f.format(Math.abs(v) < 0.5 * 10 ** -d ? 0 : v);
+  };
+
+  // ----------------------------------------------------------------------------------- languages
+
+  /** The languages of the page: code → native name, in the order of the selector. */
+  const LANGUAGES = { en: 'English', fr: 'Français', de: 'Deutsch', nl: 'Nederlands', ru: 'Русский', sv: 'Svenska', es: 'Español' };
+  /** Where this browser keeps the language chosen on the page. */
+  const LANGUAGE_KEY = 'btms.language';
+  /** The texts of the page (the `dictionaries` block): language → key → text. */
+  const DICTIONARIES = JSON.parse($('dictionaries').textContent);
+  const known = (code) => typeof code === 'string' && Object.prototype.hasOwnProperty.call(LANGUAGES, code);
+
+  /** The language chosen on this page before, when this browser kept it. */
+  function storedLanguage() {
+    try {
+      const code = localStorage.getItem(LANGUAGE_KEY);
+      return known(code) ? code : null;
+    } catch {
+      // no storage here (a private window, a sandboxed frame): the browser's language is used
+      return null;
+    }
+  }
+
+  /** The first language of the browser that the page knows (by its first two letters), else English. */
+  function browserLanguage() {
+    const wanted = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language];
+    for (const tag of wanted) {
+      const code = String(tag || '').slice(0, 2).toLowerCase();
+      if (known(code)) return code;
+    }
+    return 'en';
+  }
+
+  let language = storedLanguage() || browserLanguage();
+  const pluralRules = new Map();
+
+  /** The plural category of `count` in a language (`one`, `few`, `many`, `other`…). */
+  function plural(code, count) {
+    if (!pluralRules.has(code)) pluralRules.set(code, typeof Intl.PluralRules === 'function' ? new Intl.PluralRules(code) : null);
+    const rules = pluralRules.get(code);
+    return rules ? rules.select(count) : count === 1 ? 'one' : 'other';
+  }
+
+  /** The text of a key in one language: with a count, its plural form, else its `.other` form. */
+  function find(code, key, count) {
+    const dictionary = DICTIONARIES[code] || {};
+    if (typeof count === 'number') {
+      const form = dictionary[`${key}.${plural(code, count)}`];
+      if (typeof form === 'string') return form;
+      if (typeof dictionary[`${key}.other`] === 'string') return dictionary[`${key}.other`];
+    }
+    return typeof dictionary[key] === 'string' ? dictionary[key] : undefined;
+  }
+
+  /**
+   * The text of `key` in the page's language, else in English, else the key itself. Each `{name}`
+   * takes `params[name]`: a number is written as the language writes whole numbers (a number with
+   * decimals is given already formatted), and `count` also picks the plural form.
+   */
+  function t(key, params) {
+    const count = params && typeof params.count === 'number' ? params.count : undefined;
+    let text = find(language, key, count);
+    if (text === undefined && language !== 'en') text = find('en', key, count);
+    if (text === undefined) return key;
+    if (!params) return text;
+    return text.replace(/\{(\w+)\}/g, (whole, name) => {
+      if (!Object.prototype.hasOwnProperty.call(params, name)) return whole;
+      const value = params[name];
+      return typeof value === 'number' ? formatNumber(value) : String(value);
+    });
+  }
+
+  /** Fills the static text of the page: `data-i18n` (the text), `data-i18n-title` and `data-i18n-aria-label`. */
+  function applyTranslations() {
+    for (const el of document.querySelectorAll('[data-i18n]')) el.textContent = t(el.dataset.i18n);
+    for (const el of document.querySelectorAll('[data-i18n-title]')) el.title = t(el.dataset.i18nTitle);
+    for (const el of document.querySelectorAll('[data-i18n-aria-label]')) el.setAttribute('aria-label', t(el.dataset.i18nAriaLabel));
+  }
+
+  // ----------------------------------------------------------------------------------- state
+
+  const grid = { zmax: DEFAULT_ZMAX, px: DEFAULT_TILE_PX, zmaxSide: DEFAULT_ZMAX_SIDE };
+  /** Side of a tile of zoom z, in metres. */
+  const side = (z) => grid.zmaxSide * 2 ** (grid.zmax - z);
+  /** Half side of the world the four tiles of zoom 0 cover. */
+  const world = () => side(0);
+
+  /** The folder of the tiles (absolute URL ending with `/`), and what is put after each address. */
+  let base = new URL('./', document.baseURI);
+  let suffix = '';
+  /** Extensions to try for a tile, in order; `null`: not known yet (no manifest), see `learnExtension`. */
+  let extensions = null;
+  /** The render is finished: an empty tile stays empty, and so does everything under it. */
+  let complete = true;
+  /** The ground the tiles cover [x1, y1, x2, y2]; `boundsExact`: no tile is asked outside it. */
+  let bounds = SAN_ANDREAS.slice();
+  let boundsExact = false;
+  let boundsToInfer = false;
+  /** The four tiles of zoom 0, and whether finer ones wait for them (see `draw`). */
+  const ZERO = [[-1, -1], [0, -1], [-1, 0], [0, 0]];
+  let waitForZero = false;
+  /** Pictures cannot be fetched (page opened from the disk): plain images. */
+  const BY_IMAGE = location.protocol === 'file:';
+  /** The manifest was read (or found missing): tiles may be asked. */
+  let ready = false;
+
+  const host = $('map');
+  const canvas = document.createElement('canvas');
+  canvas.tabIndex = 0;
+  canvas.setAttribute('role', 'application');
+  host.prepend(canvas);
+  const ctx = canvas.getContext('2d', { alpha: true });
+
+  /** Centre of the view in metres and CSS pixels per metre. */
+  const view = { cx: 256, cy: 1024, k: 0.05 };
+  let width = 1;
+  let height = 1;
+  let dpr = 1;
+  /** The user moved the map: the framing found later must not take it from them. */
+  let viewTouched = false;
+
+  /** key → { key, z, tx, ty, img, known, failed, loading, stale, tries, waitUntil, seen, seenAt, rank, ctrl, dead } */
+  const tiles = new Map();
+  const inFlight = new Set();
+  let loads = 0;
+  let frameCount = 0;
+  let dirty = false;
+  let frameRequest = 0;
+
+  /** The pointer over the map (CSS px), or null: the HUD then gives the centre. */
+  let hover = null;
+
+  // ----------------------------------------------------------------------------------- geometry
+
+  const zoomOf = (k) => Math.log2((k * world()) / grid.px);
+  const kOf = (zoom) => (2 ** zoom * grid.px) / world();
+  const kMin = () => kOf(-2);
+  const kMax = () => kOf(grid.zmax + 2);
+  const worldX = (px) => view.cx + (px - width / 2) / view.k;
+  const worldY = (py) => view.cy - (py - height / 2) / view.k;
+
+  /** Keeps the zoom in its range and the centre over the tiles (anywhere in the world while they are not known). */
+  function constrain() {
+    const b = boundsToInfer ? [-world(), -world(), world(), world()] : bounds;
+    view.k = clamp(view.k, kMin(), kMax());
+    view.cx = clamp(view.cx, b[0], b[2]);
+    view.cy = clamp(view.cy, b[1], b[3]);
+  }
+
+  /** Zooms to `k` while the point under (px, py) stays where it is. */
+  function zoomAround(px, py, k) {
+    const x = worldX(px);
+    const y = worldY(py);
+    view.k = clamp(k, kMin(), kMax());
+    view.cx = x - (px - width / 2) / view.k;
+    view.cy = y + (py - height / 2) / view.k;
+    constrain();
+  }
+
+  // ----------------------------------------------------------------------------------- drawing
+
+  function requestDraw() {
+    if (dirty) return;
+    dirty = true;
+    frameRequest = requestAnimationFrame(draw);
+  }
+
+  function draw() {
+    dirty = false;
+    if (width < 2 || height < 2) return;
+    frameCount += 1;
+    const L = canvas.width;
+    const H = canvas.height;
+    const kd = view.k * dpr;
+    const g = {
+      L,
+      H,
+      kd,
+      X: (x) => L / 2 + (x - view.cx) * kd,
+      Y: (y) => H / 2 - (y - view.cy) * kd,
+      x0: view.cx - L / 2 / kd,
+      x1: view.cx + L / 2 / kd,
+      y0: view.cy - H / 2 / kd,
+      y1: view.cy + H / 2 / kd,
+    };
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, L, H);
+    drawGrid(g);
+    // nothing is asked before the manifest says where and what the tiles are
+    if (!ready) return;
+
+    // the nearest level, a little in favour of the finer one (a tile is rather shrunk than blown up)
+    const kLevel = view.k * Math.min(dpr, TILE_DPR);
+    const z = clamp(Math.round(zoomOf(kLevel) + 0.2), 0, grid.zmax);
+    const now = performance.now();
+    const queue = [];
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'medium';
+    // a coarse level first: few pictures, and it tells at once where there is nothing (sea, edges)
+    const zc = Math.max(z - 3, 0);
+    // in a finished render, the zoom 0 tiles that tell the bounds come before anything finer
+    waitForZero = boundsToInfer && complete && ZERO.some(([tx, ty]) => !(tiles.get(keyOf(0, tx, ty)) || {}).known);
+    if (zc < z) walkLevel(zc, g, now, queue, -1e6, false);
+    walkLevel(z, g, now, queue, 0, true);
+    if (boundsToInfer) requestZoom0(now, queue);
+
+    renderHud();
+    prune();
+    abandonOffscreen(now);
+    startLoads(queue);
+  }
+
+  /** Faint lines anchored to the ground, so that an empty area still moves with the map. */
+  function drawGrid(g) {
+    let step = BLOCK;
+    while (step * g.kd < 40 * dpr && step < world()) step *= 4;
+    ctx.beginPath();
+    for (let x = Math.ceil(g.x0 / step) * step; x <= g.x1; x += step) {
+      const sx = Math.round(g.X(x)) + 0.5;
+      ctx.moveTo(sx, 0);
+      ctx.lineTo(sx, g.H);
+    }
+    for (let y = Math.ceil(g.y0 / step) * step; y <= g.y1; y += step) {
+      const sy = Math.round(g.Y(y)) + 0.5;
+      ctx.moveTo(0, sy);
+      ctx.lineTo(g.L, sy);
+    }
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.07)';
+    ctx.stroke();
+  }
+
+  const keyOf = (z, tx, ty) => `${z}/${tx}/${ty}`;
+
+  function entry(z, tx, ty) {
+    const key = keyOf(z, tx, ty);
+    let e = tiles.get(key);
+    if (!e) {
+      e = { key, z, tx, ty, img: null, known: false, failed: false, loading: false, stale: false, tries: 0, waitUntil: 0, seen: 0, seenAt: 0, rank: 0, ctrl: null, dead: false };
+      tiles.set(key, e);
+    }
+    return e;
+  }
+
+  const needsLoad = (e, now) => !e.loading && (!e.known || e.stale) && now >= e.waitUntil;
+
+  /** Destination of a tile on the canvas: its edges are rounded, not its size, so tiles never gap. */
+  function destRect(z, tx, ty, g) {
+    const W = side(z);
+    const xa = Math.round(g.X(tx * W));
+    const xb = Math.round(g.X((tx + 1) * W));
+    const ya = Math.round(g.Y((ty + 1) * W));
+    const yb = Math.round(g.Y(ty * W));
+    return [xa, ya, xb - xa, yb - ya];
+  }
+
+  /** An ancestor of (z, tx, ty) is known to be empty: so is the tile (finished renders only). */
+  function ancestorEmpty(z, tx, ty) {
+    for (let za = z - 1; za >= 0; za--) {
+      const f = 2 ** (z - za);
+      const a = tiles.get(keyOf(za, Math.floor(tx / f), Math.floor(ty / f)));
+      if (a && a.known && !a.img && !a.failed && !a.stale) return true;
+    }
+    return false;
+  }
+
+  /**
+   * The tiles of level z over the view: queued when they have to be asked (`rankBase` first),
+   * drawn when `drawTiles` (else only kept alive: the coarse level is drawn through its children).
+   */
+  function walkLevel(z, g, now, queue, rankBase, drawTiles) {
+    const W = side(z);
+    const lim = world() / W;
+    let tx0 = Math.max(Math.floor(g.x0 / W), -lim);
+    let tx1 = Math.min(Math.floor(g.x1 / W), lim - 1);
+    let ty0 = Math.max(Math.floor(g.y0 / W), -lim);
+    let ty1 = Math.min(Math.floor(g.y1 / W), lim - 1);
+    if (boundsExact) {
+      tx0 = Math.max(tx0, Math.floor(bounds[0] / W));
+      tx1 = Math.min(tx1, Math.ceil(bounds[2] / W) - 1);
+      ty0 = Math.max(ty0, Math.floor(bounds[1] / W));
+      ty1 = Math.min(ty1, Math.ceil(bounds[3] / W) - 1);
+    }
+    const mx = (g.x0 + g.x1) / 2 / W - 0.5;
+    const my = (g.y0 + g.y1) / 2 / W - 0.5;
+    const zc = Math.max(z - 3, 0);
+    for (let ty = ty0; ty <= ty1; ty++) {
+      for (let tx = tx0; tx <= tx1; tx++) {
+        const e = entry(z, tx, ty);
+        e.seen = frameCount;
+        e.seenAt = now;
+        if (complete && !e.known && !e.loading && ancestorEmpty(z, tx, ty)) {
+          e.known = true;
+          continue;
+        }
+        if (needsLoad(e, now) && !(waitForZero && z > 0)) {
+          // in a finished render, wait for the coarse tile above: it may say there is nothing here
+          const f = 2 ** (z - zc);
+          const a = zc < z && complete ? tiles.get(keyOf(zc, Math.floor(tx / f), Math.floor(ty / f))) : null;
+          if (!a || !a.loading || a.known) {
+            e.rank = rankBase + (tx - mx) ** 2 + (ty - my) ** 2;
+            queue.push(e);
+          }
+        }
+        if (!drawTiles) continue;
+        if (e.img) {
+          const [x, y, w, h] = destRect(z, tx, ty, g);
+          ctx.drawImage(e.img, x, y, w, h);
+          continue;
+        }
+        if (e.known && !e.failed) continue;
+        drawStandIn(z, tx, ty, g);
+      }
+    }
+  }
+
+  /** A tile not known yet: the part of a coarser tile over it, or its four finer tiles. */
+  function drawStandIn(z, tx, ty, g) {
+    for (let za = z - 1; za >= 0; za--) {
+      const f = 2 ** (z - za);
+      const atx = Math.floor(tx / f);
+      const aty = Math.floor(ty / f);
+      const a = tiles.get(keyOf(za, atx, aty));
+      if (!a) continue;
+      if (!a.img) {
+        if (a.known && !a.failed) return;
+        continue;
+      }
+      a.seen = frameCount;
+      const c = grid.px / f;
+      const [x, y, w, h] = destRect(z, tx, ty, g);
+      ctx.drawImage(a.img, (tx - atx * f) * c, (f - 1 - (ty - aty * f)) * c, c, c, x, y, w, h);
+      return;
+    }
+    if (z >= grid.zmax) return;
+    for (let j = 0; j < 2; j++) {
+      for (let i = 0; i < 2; i++) {
+        const c = tiles.get(keyOf(z + 1, 2 * tx + i, 2 * ty + j));
+        if (!c || !c.img) continue;
+        c.seen = frameCount;
+        const [x, y, w, h] = destRect(z + 1, 2 * tx + i, 2 * ty + j, g);
+        ctx.drawImage(c.img, x, y, w, h);
+      }
+    }
+  }
+
+  // ----------------------------------------------------------------------------------- loading
+
+  /** The extensions to try now. */
+  function extensionsToTry() {
+    return extensions || ['webp', 'jpg', 'png'];
+  }
+
+  /** Without a manifest, the first picture found tells what the folder holds. */
+  function learnExtension(ext) {
+    if (extensions) return;
+    extensions = ext === 'webp' ? ['webp'] : ['jpg', 'png'];
+  }
+
+  const tileUrl = (z, tx, ty, ext) => new URL(`${z}/${tx}/${ty}.${ext}${suffix}`, base).href;
+
+  /** Starts the loads of the frame: the coarse level, then the centre first. */
+  function startLoads(queue) {
+    if (!queue.length || loads >= MAX_LOADS) return;
+    queue.sort((a, b) => a.rank - b.rank);
+    for (const e of queue) {
+      if (loads >= MAX_LOADS) break;
+      // a tile may be queued twice in a frame (as the coarse level and for the bounds)
+      if (!e.loading) load(e);
+    }
+  }
+
+  function load(e) {
+    e.loading = true;
+    loads += 1;
+    inFlight.add(e);
+    const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+    e.ctrl = ctrl;
+    const read = BY_IMAGE ? readByImage : readByFetch;
+    read(e, ctrl, e.stale).then(
+      (r) => finish(e, r),
+      () => finish(e, { failed: true }),
+    );
+  }
+
+  /** `{ img }`, `{ missing }`, `{ failed }` (no answer to trust) or `{ cancelled }`. */
+  async function readByFetch(e, ctrl, revalidate) {
+    for (const ext of extensionsToTry()) {
+      let response;
+      try {
+        response = await fetch(tileUrl(e.z, e.tx, e.ty, ext), {
+          signal: ctrl ? ctrl.signal : undefined,
+          cache: revalidate ? 'no-cache' : 'default',
+          credentials: 'same-origin',
+        });
+      } catch (error) {
+        return error && error.name === 'AbortError' ? { cancelled: true } : { failed: true };
+      }
+      // not there with this extension (403: some hosts answer that for a missing file)
+      if (response.status === 404 || response.status === 403 || response.status === 410) continue;
+      if (!response.ok) return { failed: true };
+      // a page instead of a picture: a host's own "not found" page, sent with 200
+      if ((response.headers.get('content-type') || '').toLowerCase().startsWith('text/')) continue;
+      let blob;
+      try {
+        blob = await response.blob();
+      } catch (error) {
+        return error && error.name === 'AbortError' ? { cancelled: true } : { failed: true };
+      }
+      try {
+        const img = await decode(blob);
+        learnExtension(ext);
+        return { img };
+      } catch {
+        if (ext === 'webp') checkWebp();
+      }
+    }
+    return { missing: true };
+  }
+
+  /** From the disk (`file:`), pictures can only be shown, never fetched: a failure means "not there". */
+  function readByImage(e, ctrl) {
+    const list = extensionsToTry();
+    return new Promise((resolve) => {
+      let i = 0;
+      let img = null;
+      const tryNext = () => {
+        if (i >= list.length) return resolve({ missing: true });
+        const ext = list[i++];
+        img = new Image();
+        img.decoding = 'async';
+        img.onload = () => {
+          learnExtension(ext);
+          resolve({ img });
+        };
+        img.onerror = () => {
+          if (ctrl && ctrl.signal.aborted) return;
+          tryNext();
+        };
+        img.src = tileUrl(e.z, e.tx, e.ty, ext);
+      };
+      if (ctrl) {
+        ctrl.signal.addEventListener('abort', () => {
+          if (img) img.src = '';
+          resolve({ cancelled: true });
+        });
+      }
+      tryNext();
+    });
+  }
+
+  /** A picture ready to draw (decoded off the main thread when the browser can). */
+  function decode(blob) {
+    if (typeof createImageBitmap === 'function') return createImageBitmap(blob);
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => {
+        const done = () => {
+          URL.revokeObjectURL(url);
+          resolve(img);
+        };
+        if (img.decode) img.decode().then(done, done);
+        else done();
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('unreadable image'));
+      };
+      img.src = url;
+    });
+  }
+
+  function finish(e, r) {
+    loads -= 1;
+    e.loading = false;
+    e.ctrl = null;
+    inFlight.delete(e);
+    if (e.dead) {
+      if (r.img && r.img.close) r.img.close();
+      return;
+    }
+    if (r.cancelled) {
+      // given up because it left the screen: asked again when it comes back
+      requestDraw();
+      return;
+    }
+    if (r.failed) {
+      // the server did not answer, or not as it should: this says nothing of the tile. What is
+      // shown stays, and the tile is asked again a little later, a few times.
+      e.tries += 1;
+      if (e.tries < MAX_TRIES) {
+        e.waitUntil = performance.now() + 1500 * e.tries;
+        setTimeout(requestDraw, 1500 * e.tries + 20);
+      } else {
+        e.tries = 0;
+        e.stale = false;
+        e.known = true;
+        e.failed = true;
+      }
+      requestDraw();
+      return;
+    }
+    if (e.img && e.img !== r.img && e.img.close) e.img.close();
+    e.img = r.img || null;
+    e.known = true;
+    e.failed = false;
+    e.stale = false;
+    e.tries = 0;
+    requestDraw();
+    if (boundsToInfer && e.z === 0) inferBounds();
+  }
+
+  /** Loads whose tile left the screen are given up: the bandwidth goes to what is shown. */
+  function abandonOffscreen(now) {
+    for (const e of inFlight) {
+      if (e.ctrl && now - e.seenAt > ABANDON_MS) e.ctrl.abort();
+    }
+  }
+
+  /** Bounds the cache: the pictures seen longest ago go first. */
+  function prune() {
+    if (tiles.size <= MAX_IMAGES) return;
+    let images = 0;
+    for (const e of tiles.values()) if (e.img) images += 1;
+    const tooManyKeys = tiles.size > MAX_KEYS;
+    if (images <= MAX_IMAGES && !tooManyKeys) return;
+    const unseen = [];
+    for (const e of tiles.values()) if (e.seen !== frameCount && !e.loading) unseen.push(e);
+    unseen.sort((a, b) => a.seen - b.seen);
+    let imagesToDrop = Math.max(images - Math.floor(MAX_IMAGES * 0.8), 0);
+    let keysToDrop = tooManyKeys ? tiles.size - Math.floor(MAX_KEYS * 0.8) : 0;
+    for (const e of unseen) {
+      if (e.img) {
+        if (imagesToDrop <= 0) continue;
+        imagesToDrop -= 1;
+      } else if (keysToDrop <= 0) {
+        continue;
+      }
+      keysToDrop -= 1;
+      e.dead = true;
+      if (e.img && e.img.close) e.img.close();
+      e.img = null;
+      tiles.delete(e.key);
+    }
+  }
+
+  // ----------------------------------------------------------------------------------- where the tiles are
+
+  /** [x1, y1, x2, y2] from the manifest: `bounds`, else the zone of the render widened to its blocks. */
+  function manifestBounds(m) {
+    const rect = (v) => Array.isArray(v) && v.length === 4 && v.every(Number.isFinite) && v[2] > v[0] && v[3] > v[1];
+    if (rect(m.bounds)) return m.bounds.slice();
+    if (rect(m.zone)) {
+      const z = m.zone;
+      return [Math.floor(z[0] / BLOCK) * BLOCK, Math.floor(z[1] / BLOCK) * BLOCK, Math.ceil(z[2] / BLOCK) * BLOCK, Math.ceil(z[3] / BLOCK) * BLOCK];
+    }
+    return null;
+  }
+
+  /** Without bounds in the manifest, the four tiles of zoom 0 are asked first: they tell. */
+  function requestZoom0(now, queue) {
+    for (const [tx, ty] of ZERO) {
+      const e = entry(0, tx, ty);
+      e.seen = frameCount;
+      e.seenAt = now;
+      if (needsLoad(e, now)) {
+        e.rank = -2e6;
+        queue.push(e);
+      }
+    }
+  }
+
+  /**
+   * The ground the zoom 0 tiles show something on (one of their pixels is `side(0) / px` metres:
+   * 32 m), one pixel wider on each side. A finished render asks no tile outside: what is not even
+   * a faint pixel at zoom 0 is a speck smaller than a metre, alone and far from everything else.
+   */
+  function inferBounds() {
+    const zero = ZERO.map(([tx, ty]) => tiles.get(keyOf(0, tx, ty)));
+    // all four answered, and none being asked again (a render still growing): else wait for them
+    if (zero.some((e) => !e || !e.known || e.stale || e.loading)) return;
+    boundsToInfer = false;
+    if (zero.every((e) => !e.img)) {
+      if (!complete) {
+        // nothing drawn yet: asked again with the next reading of the manifest
+        boundsToInfer = true;
+        return;
+      }
+      showMessage('message.noTiles');
+      return;
+    }
+    const px = grid.px;
+    const step = side(0) / px;
+    let b = null;
+    let scratch;
+    try {
+      scratch = document.createElement('canvas');
+      scratch.width = px;
+      scratch.height = px;
+      const c = scratch.getContext('2d', { willReadFrequently: true });
+      for (const e of zero) {
+        if (!e.img) continue;
+        c.clearRect(0, 0, px, px);
+        c.drawImage(e.img, 0, 0, px, px);
+        const a = c.getImageData(0, 0, px, px).data;
+        let i0 = px;
+        let i1 = -1;
+        let j0 = px;
+        let j1 = -1;
+        for (let j = 0; j < px; j++) {
+          for (let i = 0; i < px; i++) {
+            if (a[(j * px + i) * 4 + 3] === 0) continue;
+            if (i < i0) i0 = i;
+            if (i > i1) i1 = i;
+            if (j < j0) j0 = j;
+            if (j > j1) j1 = j;
+          }
+        }
+        if (i1 < 0) continue;
+        const W = side(0);
+        // row j is counted from the top (north) of the tile
+        const r = [e.tx * W + (i0 - 1) * step, (e.ty + 1) * W - (j1 + 2) * step, e.tx * W + (i1 + 2) * step, (e.ty + 1) * W - (j0 - 1) * step];
+        b = b ? [Math.min(b[0], r[0]), Math.min(b[1], r[1]), Math.max(b[2], r[2]), Math.max(b[3], r[3])] : r;
+      }
+    } catch {
+      // the pictures cannot be read back (page opened from the disk): San Andreas stays
+      return;
+    }
+    if (!b) return;
+    bounds = [Math.floor(b[0] / BLOCK) * BLOCK, Math.floor(b[1] / BLOCK) * BLOCK, Math.ceil(b[2] / BLOCK) * BLOCK, Math.ceil(b[3] / BLOCK) * BLOCK];
+    boundsExact = complete;
+    if (!viewTouched) fitBounds(bounds, { animate: !REDUCED_MOTION });
+    else requestDraw();
+  }
+
+  // ----------------------------------------------------------------------------------- manifest
+
+  /** `tiles.json` next to the page; a folder asked without its final slash (`…/map`) is tried too. */
+  async function readManifest() {
+    const urls = [new URL('tiles.json', document.baseURI)];
+    const path = location.pathname;
+    const last = path.slice(path.lastIndexOf('/') + 1);
+    if (last && !last.includes('.')) urls.push(new URL(`${last}/tiles.json`, document.baseURI));
+    let firstError = null;
+    for (const url of urls) {
+      try {
+        const response = await fetch(url, { cache: 'no-cache', credentials: 'same-origin' });
+        if (!response.ok) {
+          firstError = firstError || `${response.status}`;
+          continue;
+        }
+        const text = await response.text();
+        return { url, text, json: JSON.parse(text) };
+      } catch (error) {
+        firstError = firstError || (error instanceof SyntaxError ? 'unreadable' : 'unreachable');
+      }
+    }
+    return { error: firstError || 'unreachable' };
+  }
+
+  /** A short tag of the manifest: tile addresses change with it, so a new render is never mixed with the cache of an old one. */
+  function fingerprint(text) {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < text.length; i++) {
+      h ^= text.charCodeAt(i);
+      h = Math.imul(h, 0x01000193);
+    }
+    return (h >>> 0).toString(36);
+  }
+
+  function applyManifest(m) {
+    const zmax = Number.isInteger(m.zmax) && m.zmax >= 0 && m.zmax <= 24 ? m.zmax : DEFAULT_ZMAX;
+    const px = Number.isInteger(m.tile) && m.tile > 0 && m.tile <= 4096 ? m.tile : DEFAULT_TILE_PX;
+    const mpp = Number(m.metres_per_pixel_zmax);
+    grid.zmax = zmax;
+    grid.px = px;
+    grid.zmaxSide = Number.isFinite(mpp) && mpp > 0 ? mpp * px : DEFAULT_ZMAX_SIDE;
+    const ext = typeof m.extension === 'string' ? m.extension.trim().toLowerCase().replace(/^\./, '') : '';
+    // the contract: one extension per folder when it is named; an older folder mixes jpg and png
+    extensions = /^[a-z0-9]{2,5}$/.test(ext) ? (ext === 'jpg' ? ['jpg', 'png'] : [ext]) : ['jpg', 'png'];
+    complete = m.complete !== false;
+    const l = manifestBounds(m);
+    if (l) {
+      bounds = l;
+      boundsExact = true;
+      boundsToInfer = false;
+    } else {
+      bounds = SAN_ANDREAS.slice();
+      boundsExact = false;
+      boundsToInfer = true;
+    }
+  }
+
+  /** The manifest the info panel describes (`null`: none was read), written again when the language changes. */
+  let described = null;
+
+  /** A quality of the manifest in words: `quality 82`, `lossless`, or the manifest's own text. */
+  const qualityWords = (q) => (typeof q === 'number' ? t('info.quality', { value: q }) : q === 'lossless' ? t('info.lossless') : q);
+
+  function describeManifest(m) {
+    described = m;
+    const ext = extensions ? extensions[0] : null;
+    const formatName = { webp: 'WebP', jpg: t('info.jpegPng'), png: 'PNG', avif: 'AVIF' }[ext] || (ext ? ext.toUpperCase() : t('info.unknown'));
+    const rows = [];
+    const quality = qualityWords(m.quality);
+    rows.push([t('info.tiles'), typeof quality === 'string' && quality ? `${formatName} (${quality})` : formatName]);
+    // a folder converted from an older one says what it was
+    const source = m.converted_from;
+    if (source && typeof source === 'object' && typeof source.extension === 'string') {
+      const q = typeof source.quality === 'number' || typeof source.quality === 'string' ? `, ${qualityWords(source.quality)}` : '';
+      rows.push([t('info.convertedFrom'), `${source.extension === 'jpg' ? t('info.jpegPng') : source.extension.toUpperCase()}${q}`]);
+    }
+    const mpp = grid.zmaxSide / grid.px;
+    rows.push([t('info.maxZoom'), t('info.maxZoomValue', { zoom: grid.zmax, cm: formatNumber(mpp * 100, mpp * 100 < 10 ? 2 : 0) })]);
+    const state = complete ? t('info.finished') : t('info.inProgress');
+    if (Number.isFinite(m.blocks)) rows.push([t('info.render'), `${state}, ${t('info.blocks', { count: m.blocks, size: BLOCK })}`]);
+    else rows.push([t('info.render'), state]);
+    const light = m.lighting;
+    if (light && typeof light === 'object') {
+      const parts = [];
+      if (Number.isFinite(light.azimuth)) parts.push(t('info.sun', { azimuth: light.azimuth }));
+      if (Number.isFinite(light.elevation)) parts.push(t('info.elevation', { elevation: light.elevation }));
+      if (light.shadows === true) parts.push(t('info.shadows'));
+      rows.push([t('info.lighting'), parts.join(', ') || t('info.lightingOn')]);
+    } else if (m.format) {
+      rows.push([t('info.lighting'), t('info.lightingNone')]);
+    }
+    if (Array.isArray(m.resources) && m.resources.length) rows.push([t('info.server'), t('info.resources', { count: m.resources.length })]);
+    if (typeof m.format === 'string') rows.push([t('info.format'), m.format]);
+    const dl = $('info-list');
+    dl.replaceChildren();
+    for (const [label, value] of rows) {
+      const dt = document.createElement('dt');
+      dt.textContent = label;
+      const dd = document.createElement('dd');
+      dd.textContent = value;
+      dl.append(dt, dd);
+    }
+  }
+
+  /** The info panel when no manifest could be read: the default grid. */
+  function describeNoManifest() {
+    described = null;
+    const dt = document.createElement('dt');
+    dt.textContent = t('info.tiles');
+    const dd = document.createElement('dd');
+    dd.textContent = t('info.noManifest', { zoom: DEFAULT_ZMAX, px: DEFAULT_TILE_PX });
+    $('info-list').replaceChildren(dt, dd);
+  }
+
+  function showStatus() {
+    $('status').textContent = complete ? '' : t('status.rendering');
+    $('status').title = complete ? '' : t('status.filling', { seconds: REFRESH_MS / 1000 });
+  }
+
+  /** While BTMS writes, the manifest is read again; when it changes, the tiles are asked again. */
+  function follow(text) {
+    setTimeout(async () => {
+      if (document.hidden) return follow(text);
+      const r = await readManifest();
+      if (!r.json) return follow(text);
+      if (r.text !== text) {
+        applyManifest(r.json);
+        describeManifest(r.json);
+        showStatus();
+      }
+      // new tiles may be anywhere: everything not seen yet is asked again, revalidated
+      for (const e of tiles.values()) {
+        e.waitUntil = 0;
+        if (e.loading) continue;
+        if (!e.img || e.z <= 6 || r.text !== text) e.stale = e.known || e.stale;
+      }
+      // the map grew: its bounds are read again from the zoom 0 tiles, once they are back
+      if (!manifestBounds(r.json)) boundsToInfer = true;
+      requestDraw();
+      if (!complete) follow(r.text);
+    }, REFRESH_MS);
+  }
+
+  // ----------------------------------------------------------------------------------- messages
+
+  let webpChecked = false;
+  function checkWebp() {
+    if (webpChecked) return;
+    webpChecked = true;
+    const img = new Image();
+    img.onload = () => {
+      if (img.width !== 1) showMessage('message.noWebp');
+    };
+    img.onerror = () => showMessage('message.noWebp');
+    img.src = 'data:image/webp;base64,UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==';
+  }
+
+  let messageTimer = 0;
+  /** The key of the message shown last, so that a change of language writes it again. */
+  let shownMessage = null;
+  function showMessage(key, ms = 0) {
+    const el = $('message');
+    shownMessage = key;
+    el.textContent = t(key);
+    el.hidden = false;
+    clearTimeout(messageTimer);
+    if (ms) messageTimer = setTimeout(() => (el.hidden = true), ms);
+  }
+
+  // ----------------------------------------------------------------------------------- HUD
+
+  const hud = {
+    label: $('hud-label'),
+    x: $('hud-x'),
+    y: $('hud-y'),
+    zoom: $('hud-zoom'),
+    bar: $('scale-bar'),
+    text: $('scale-text'),
+  };
+  let lastHud = '';
+
+  function renderHud() {
+    const zoom = zoomOf(view.k);
+    // the decimals follow the zoom: tenths of a metre when a metre is wide enough to point at them
+    const d = view.k >= 2 ? 1 : 0;
+    const [x, y] = hover ? [worldX(hover[0]), worldY(hover[1])] : [view.cx, view.cy];
+    // the longest round length (1, 2 or 5 × 10^n m) that fits the bar's room
+    const m = (width <= 560 ? 90 : 120) / view.k;
+    const p = 10 ** Math.floor(Math.log10(m));
+    const metres = (m >= 5 * p ? 5 : m >= 2 * p ? 2 : 1) * p;
+    const over = zoom > grid.zmax ? ` (×${formatNumber(2 ** (zoom - grid.zmax), 1)})` : '';
+    const texts = [hover ? 'x' : t('hud.centre'), formatNumber(x, d), formatNumber(y, d), `${formatNumber(zoom, 2)}${over}`, t('hud.scale', { value: formatNumber(metres, metres < 1 ? 2 : 0) }), Math.round(metres * view.k)];
+    // (the buttons are part of the key: the last frames of a zoom to the end show the same
+    // rounded zoom, and only the very last one reaches it)
+    const atLimit = [view.k >= kMax() * 0.999, view.k <= kMin() * 1.001];
+    const key = [...texts, ...atLimit].join('|');
+    if (key === lastHud) return;
+    lastHud = key;
+    hud.label.textContent = texts[0];
+    hud.x.textContent = texts[1];
+    hud.y.textContent = texts[2];
+    hud.zoom.textContent = texts[3];
+    hud.text.textContent = texts[4];
+    hud.bar.style.width = `${texts[5]}px`;
+    $('zoom-in').disabled = atLimit[0];
+    $('zoom-out').disabled = atLimit[1];
+  }
+
+  // ----------------------------------------------------------------------------------- view in the address
+
+  let hashTimer = 0;
+  function viewChanged() {
+    requestDraw();
+    clearTimeout(hashTimer);
+    hashTimer = setTimeout(writeHash, 300);
+  }
+
+  /** `#<zoom>/<x>/<y>`: a link to this very view. */
+  function writeHash() {
+    const z = zoomOf(view.k);
+    const d = view.k >= 2 ? 1 : 0;
+    const hash = `#${z.toFixed(2)}/${view.cx.toFixed(d)}/${view.cy.toFixed(d)}`;
+    if (location.hash === hash) return;
+    try {
+      history.replaceState(history.state, '', hash);
+    } catch {
+      // some embeddings refuse it: the view is just not in the address
+    }
+  }
+
+  function readHash() {
+    const parts = location.hash.replace(/^#/, '').split('/').map(Number);
+    if (parts.length !== 3 || !parts.every(Number.isFinite)) return null;
+    return { zoom: parts[0], cx: parts[1], cy: parts[2] };
+  }
+
+  // ----------------------------------------------------------------------------------- animation
+
+  let animation = null;
+  function stopAnimation() {
+    if (animation) cancelAnimationFrame(animation.frame);
+    animation = null;
+  }
+
+  /** Runs `step(p)` with p from 0 to 1 over `ms`, eased; at once when motion is reduced. */
+  function animate(ms, step) {
+    stopAnimation();
+    if (REDUCED_MOTION) {
+      step(1);
+      constrain();
+      viewChanged();
+      return;
+    }
+    const startTime = performance.now();
+    const a = { frame: 0 };
+    animation = a;
+    const tick = (now) => {
+      if (animation !== a) return;
+      const p = clamp((now - startTime) / ms, 0, 1);
+      step(1 - (1 - p) ** 3);
+      constrain();
+      viewChanged();
+      if (p < 1) a.frame = requestAnimationFrame(tick);
+      else animation = null;
+    };
+    a.frame = requestAnimationFrame(tick);
+  }
+
+  function animateZoom(px, py, k) {
+    const k0 = view.k;
+    const k1 = clamp(k, kMin(), kMax());
+    if (Math.abs(k1 - k0) < 1e-9) return;
+    animate(220, (p) => zoomAround(px, py, k0 * (k1 / k0) ** p));
+  }
+
+  /** The map keeps sliding after a quick drag, slowing down. */
+  function coast(vx, vy) {
+    if (REDUCED_MOTION || Math.hypot(vx, vy) < 0.25) return;
+    stopAnimation();
+    const a = { frame: 0 };
+    animation = a;
+    let last = performance.now();
+    const tick = (now) => {
+      if (animation !== a) return;
+      const dt = Math.min(now - last, 40);
+      last = now;
+      view.cx -= (vx * dt) / view.k;
+      view.cy += (vy * dt) / view.k;
+      const f = Math.exp(-dt / 325);
+      vx *= f;
+      vy *= f;
+      constrain();
+      viewChanged();
+      if (Math.hypot(vx, vy) > 0.02) a.frame = requestAnimationFrame(tick);
+      else animation = null;
+    };
+    a.frame = requestAnimationFrame(tick);
+  }
+
+  /** Margins kept free around a framing (top, right, bottom, left), for the panels. */
+  function margins() {
+    return width <= 560 ? [64, 16, 64, 16] : [72, 72, 60, 24];
+  }
+
+  let pendingFit = null;
+  /** Frames [x1, y1, x2, y2]. */
+  function fitBounds(r, { animate: animated = true } = {}) {
+    if (width < 8 || height < 8) {
+      pendingFit = r;
+      return;
+    }
+    pendingFit = null;
+    const [mt, mr, mb, ml] = margins();
+    const w = Math.max(width - mr - ml, 60);
+    const h = Math.max(height - mt - mb, 60);
+    const k1 = clamp(Math.min(w / Math.max(r[2] - r[0], 1), h / Math.max(r[3] - r[1], 1)), kMin(), kMax());
+    const cx1 = (r[0] + r[2]) / 2 - (ml - mr) / 2 / k1;
+    const cy1 = (r[1] + r[3]) / 2 + (mt - mb) / 2 / k1;
+    if (!animated) {
+      stopAnimation();
+      Object.assign(view, { cx: cx1, cy: cy1, k: k1 });
+      constrain();
+      viewChanged();
+      return;
+    }
+    const { cx: cx0, cy: cy0, k: k0 } = view;
+    animate(360, (p) => {
+      view.k = k0 * (k1 / k0) ** p;
+      // the centre moves on the screen at a steady pace: follow the zoom, not the time
+      const u = Math.abs(k1 - k0) < 1e-12 ? p : (1 / k0 - 1 / view.k) / (1 / k0 - 1 / k1);
+      view.cx = cx0 + (cx1 - cx0) * u;
+      view.cy = cy0 + (cy1 - cy0) * u;
+    });
+  }
+
+  // ----------------------------------------------------------------------------------- pointers
+
+  /** Pointers down on the map: id → { x, y, x0, y0, t0, type }. */
+  const pointers = new Map();
+  /** What they do: drag the view, or pinch it. */
+  let gesture = null;
+  /** The last tap of a finger (double tap), and the gesture's own record (two-finger tap). */
+  let tap = null;
+  let multiGesture = null;
+  let lastPointerType = 'mouse';
+
+  function pointOf(ev) {
+    const r = canvas.getBoundingClientRect();
+    return [ev.clientX - r.left, ev.clientY - r.top];
+  }
+
+  /** (Re)starts the gesture from the pointers down now. */
+  function startGesture() {
+    const p = [...pointers.values()];
+    if (p.length === 0) {
+      gesture = null;
+    } else if (p.length === 1) {
+      gesture = { type: 'drag', px: p[0].x, py: p[0].y, cx: view.cx, cy: view.cy, trail: [[performance.now(), p[0].x, p[0].y]] };
+    } else {
+      const [a, b] = p;
+      const mx = (a.x + b.x) / 2;
+      const my = (a.y + b.y) / 2;
+      gesture = { type: 'pinch', d0: Math.max(Math.hypot(a.x - b.x, a.y - b.y), 1), k0: view.k, wx: worldX(mx), wy: worldY(my) };
+    }
+    canvas.classList.toggle('grabbing', gesture !== null && lastPointerType === 'mouse');
+  }
+
+  canvas.addEventListener('pointerdown', (ev) => {
+    if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+    lastPointerType = ev.pointerType || 'mouse';
+    stopAnimation();
+    viewTouched = true;
+    const [px, py] = pointOf(ev);
+    pointers.set(ev.pointerId, { x: px, y: py, x0: px, y0: py, t0: performance.now(), type: lastPointerType });
+    try {
+      canvas.setPointerCapture(ev.pointerId);
+    } catch {
+      // a pointer that cannot be captured still drags while it stays over the map
+    }
+    if (pointers.size === 1) multiGesture = { t0: performance.now(), max: 1, moved: false };
+    else if (multiGesture) multiGesture.max = Math.max(multiGesture.max, pointers.size);
+    startGesture();
+    if (lastPointerType !== 'mouse') {
+      hover = null;
+      showCrosshair(true);
+    }
+    canvas.focus({ preventScroll: true });
+    ev.preventDefault();
+  });
+
+  canvas.addEventListener('pointermove', (ev) => {
+    const [px, py] = pointOf(ev);
+    const p = pointers.get(ev.pointerId);
+    if (!p) {
+      if (ev.pointerType === 'mouse' || ev.pointerType === 'pen') {
+        hover = [px, py];
+        showCrosshair(false);
+        requestDraw();
+      }
+      return;
+    }
+    p.x = px;
+    p.y = py;
+    if (multiGesture && Math.hypot(px - p.x0, py - p.y0) > 8) multiGesture.moved = true;
+    if (!gesture) return;
+    if (gesture.type === 'drag') {
+      view.cx = gesture.cx - (px - gesture.px) / view.k;
+      view.cy = gesture.cy + (py - gesture.py) / view.k;
+      const now = performance.now();
+      gesture.trail.push([now, px, py]);
+      while (gesture.trail.length > 2 && now - gesture.trail[0][0] > 100) gesture.trail.shift();
+    } else {
+      const [a, b] = [...pointers.values()];
+      const mx = (a.x + b.x) / 2;
+      const my = (a.y + b.y) / 2;
+      const d = Math.max(Math.hypot(a.x - b.x, a.y - b.y), 1);
+      view.k = clamp(gesture.k0 * (d / gesture.d0), kMin(), kMax());
+      view.cx = gesture.wx - (mx - width / 2) / view.k;
+      view.cy = gesture.wy + (my - height / 2) / view.k;
+    }
+    if (ev.pointerType === 'mouse') hover = [px, py];
+    constrain();
+    viewChanged();
+  });
+
+  function release(ev) {
+    const p = pointers.get(ev.pointerId);
+    if (!p) return;
+    pointers.delete(ev.pointerId);
+    try {
+      if (canvas.hasPointerCapture(ev.pointerId)) canvas.releasePointerCapture(ev.pointerId);
+    } catch {
+      // already released
+    }
+    const ended = gesture;
+    const now = performance.now();
+    if (pointers.size > 0) {
+      // one finger of a pinch left: the other drags from where it is
+      startGesture();
+      return;
+    }
+    gesture = null;
+    canvas.classList.remove('grabbing');
+    if (ev.type === 'pointercancel') return;
+    const m = multiGesture;
+    multiGesture = null;
+    const [px, py] = pointOf(ev);
+    // two fingers tapped together: one level out
+    if (m && m.max === 2 && !m.moved && now - m.t0 < 300) {
+      animateZoom(width / 2, height / 2, view.k / 2);
+      tap = null;
+      return;
+    }
+    if (p.type !== 'mouse' && m && m.max === 1 && !m.moved && now - p.t0 < 300) {
+      // a finger tapped twice: one level in, around the tap
+      if (tap && now - tap.t < 320 && Math.hypot(px - tap.x, py - tap.y) < 32) {
+        tap = null;
+        animateZoom(px, py, view.k * 2);
+      } else {
+        tap = { t: now, x: px, y: py };
+      }
+      return;
+    }
+    if (ended && ended.type === 'drag' && ended.trail.length >= 2) {
+      const [t0, x0, y0] = ended.trail[0];
+      const [t1, x1, y1] = ended.trail[ended.trail.length - 1];
+      // a drag that stopped before the release does not slide on
+      if (now - t1 < 60 && t1 - t0 > 8) coast((x1 - x0) / (t1 - t0), (y1 - y0) / (t1 - t0));
+    }
+  }
+  canvas.addEventListener('pointerup', release);
+  canvas.addEventListener('pointercancel', release);
+  canvas.addEventListener('lostpointercapture', (ev) => {
+    if (pointers.has(ev.pointerId)) release(ev);
+  });
+
+  canvas.addEventListener('pointerleave', (ev) => {
+    if (ev.pointerType !== 'mouse' || pointers.size) return;
+    hover = null;
+    requestDraw();
+  });
+
+  canvas.addEventListener(
+    'wheel',
+    (ev) => {
+      ev.preventDefault();
+      stopAnimation();
+      viewTouched = true;
+      const [px, py] = pointOf(ev);
+      let step = ev.deltaY * (ev.deltaMode === 1 ? 33 : ev.deltaMode === 2 ? 800 : 1);
+      // a pinch on a touchpad comes as a wheel with Ctrl: small steps, followed closely
+      if (ev.ctrlKey) step *= 4;
+      zoomAround(px, py, view.k * Math.exp(-clamp(step, -400, 400) * 0.0022));
+      hover = [px, py];
+      viewChanged();
+    },
+    { passive: false },
+  );
+
+  canvas.addEventListener('dblclick', (ev) => {
+    // fingers have their own double tap (pointerup)
+    if (lastPointerType !== 'mouse' && lastPointerType !== 'pen') return;
+    const [px, py] = pointOf(ev);
+    viewTouched = true;
+    animateZoom(px, py, view.k * (ev.shiftKey ? 0.5 : 2));
+  });
+
+  // Safari's own pinch of the page, over the map
+  canvas.addEventListener('gesturestart', (ev) => ev.preventDefault());
+  canvas.addEventListener('contextmenu', (ev) => {
+    if (lastPointerType !== 'mouse') ev.preventDefault();
+  });
+
+  canvas.addEventListener('keydown', (ev) => {
+    const step = 80 / view.k;
+    let handled = true;
+    if (ev.key === '+' || ev.key === '=') animateZoom(width / 2, height / 2, view.k * 2);
+    else if (ev.key === '-' || ev.key === '_') animateZoom(width / 2, height / 2, view.k / 2);
+    else if (ev.key === 'ArrowLeft') view.cx -= step;
+    else if (ev.key === 'ArrowRight') view.cx += step;
+    else if (ev.key === 'ArrowUp') view.cy += step;
+    else if (ev.key === 'ArrowDown') view.cy -= step;
+    else if (ev.key === '0' || ev.key === 'Home') fitBounds(bounds);
+    else handled = false;
+    if (!handled) return;
+    ev.preventDefault();
+    viewTouched = true;
+    constrain();
+    viewChanged();
+  });
+
+  function showCrosshair(visible) {
+    $('crosshair').classList.toggle('visible', visible);
+  }
+
+  // ----------------------------------------------------------------------------------- buttons
+
+  $('zoom-in').addEventListener('click', () => {
+    viewTouched = true;
+    animateZoom(width / 2, height / 2, view.k * 2);
+  });
+  $('zoom-out').addEventListener('click', () => {
+    viewTouched = true;
+    animateZoom(width / 2, height / 2, view.k / 2);
+  });
+  $('zoom-all').addEventListener('click', () => fitBounds(bounds));
+
+  // a click outside the details closes them
+  document.addEventListener('pointerdown', (ev) => {
+    const info = $('info');
+    if (info.open && !info.contains(ev.target)) info.open = false;
+  });
+
+  // ----------------------------------------------------------------------------------- size
+
+  function measure() {
+    const r = host.getBoundingClientRect();
+    const d = window.devicePixelRatio || 1;
+    const w = Math.max(Math.round(r.width), 1);
+    const h = Math.max(Math.round(r.height), 1);
+    if (w === width && h === height && d === dpr) return;
+    width = w;
+    height = h;
+    dpr = d;
+    canvas.width = Math.round(w * d);
+    canvas.height = Math.round(h * d);
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
+    if (pendingFit && w >= 8 && h >= 8) fitBounds(pendingFit, { animate: false });
+    dirty = false;
+    cancelAnimationFrame(frameRequest);
+    draw();
+  }
+
+  if (typeof ResizeObserver === 'function') new ResizeObserver(measure).observe(host);
+  window.addEventListener('resize', measure);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) requestDraw();
+  });
+  // back online: the tiles that failed are asked again
+  window.addEventListener('online', () => {
+    for (const e of tiles.values()) {
+      if (e.failed) {
+        e.failed = false;
+        e.known = !!e.img;
+        e.stale = !!e.img;
+        e.tries = 0;
+        e.waitUntil = 0;
+      }
+    }
+    requestDraw();
+  });
+  window.addEventListener('hashchange', () => {
+    const v = readHash();
+    if (!v) return;
+    stopAnimation();
+    view.cx = v.cx;
+    view.cy = v.cy;
+    view.k = kOf(v.zoom);
+    constrain();
+    requestDraw();
+  });
+
+  // ----------------------------------------------------------------------------------- language selector
+
+  const languageSelect = $('language-select');
+  for (const [code, name] of Object.entries(LANGUAGES)) {
+    const option = document.createElement('option');
+    option.value = code;
+    option.lang = code;
+    option.textContent = name;
+    languageSelect.append(option);
+  }
+
+  /** Writes the static text of the page and the map's own labels in the language in use. */
+  function translatePage() {
+    numberFormats.clear();
+    document.documentElement.lang = language;
+    document.title = t('page.title');
+    applyTranslations();
+    canvas.setAttribute('aria-roledescription', t('page.roleDescription'));
+    canvas.setAttribute('aria-label', t('page.canvasLabel'));
+    languageSelect.value = language;
+    $('language-code').textContent = language.toUpperCase();
+  }
+
+  languageSelect.addEventListener('change', () => {
+    language = known(languageSelect.value) ? languageSelect.value : 'en';
+    try {
+      localStorage.setItem(LANGUAGE_KEY, language);
+    } catch {
+      // not kept: the next visit starts again from the browser's language
+    }
+    translatePage();
+    // and what the script wrote: the info panel, the render status, the message, the HUD
+    if (described) describeManifest(described);
+    else if (ready) describeNoManifest();
+    showStatus();
+    if (shownMessage) $('message').textContent = t(shownMessage);
+    lastHud = '';
+    requestDraw();
+  });
+
+  translatePage();
+
+  // ----------------------------------------------------------------------------------- start
+
+  async function start() {
+    measure();
+    let r = { error: 'disk' };
+    if (!BY_IMAGE) r = await readManifest();
+    if (r.json && typeof r.json === 'object') {
+      base = new URL('./', r.url);
+      suffix = `?v=${fingerprint(r.text)}`;
+      applyManifest(r.json);
+      describeManifest(r.json);
+      showStatus();
+      if (!complete) follow(r.text);
+    } else {
+      // no manifest: the tiles are still tried next to the page, whatever their extension
+      boundsToInfer = !BY_IMAGE;
+      const why = BY_IMAGE ? 'message.fromDisk' : r.error === 'unreadable' ? 'message.unreadable' : 'message.notFound';
+      showMessage(why, 9000);
+      describeNoManifest();
+    }
+    ready = true;
+    const v = readHash();
+    if (v) {
+      view.cx = v.cx;
+      view.cy = v.cy;
+      view.k = kOf(v.zoom);
+      viewTouched = true;
+      constrain();
+      requestDraw();
+    } else {
+      fitBounds(bounds, { animate: false });
+    }
+  }
+
+  start();
+})();
+</script>
+</body>
+</html>

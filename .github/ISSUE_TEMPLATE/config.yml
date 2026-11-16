@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/BuuDevOff/BTMS/discussions
+    about: Ask a question, share a map you made, or discuss an idea before it becomes a request.
+  - name: Security vulnerability
+    url: https://github.com/BuuDevOff/BTMS/security/advisories/new
+    about: Report a security problem privately. Please do not open a public issue.
