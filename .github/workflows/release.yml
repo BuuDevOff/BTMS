@@ -92,20 +92,28 @@ jobs:
           manifest-file: .release-please-manifest.json
 
       # (a branch rule that requires reviews makes this fail: the pull request then waits for you,
-      # and the preview build still runs)
+      # and the preview build still runs). The pull request is read in the script, not with
+      # fromJSON() in `env`: GitHub rejects the whole step when that output is empty.
       - name: Merge the release pull request
         id: merge
         if: vars.BTMS_AUTO_RELEASE != 'false' && steps.release.outputs.prs_created == 'true'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
-          PR: ${{ fromJSON(steps.release.outputs.pr).number }}
-        run: gh pr merge "$PR" --repo "$GITHUB_REPOSITORY" --squash --delete-branch
+          PR_JSON: ${{ steps.release.outputs.pr }}
+        run: |
+          number=$(printf '%s' "$PR_JSON" | jq -r '.number // empty')
+          if [ -z "$number" ]; then
+            echo "No release pull request to merge."
+            exit 0
+          fi
+          gh pr merge "$number" --repo "$GITHUB_REPOSITORY" --squash --delete-branch
+          echo "merged=true" >> "$GITHUB_OUTPUT"
 
       # A merge made with the workflow's token starts no new run, so the release is made here
       - name: Tag and publish the release
         id: after-merge
-        if: steps.merge.outcome == 'success'
+        if: steps.merge.outputs.merged == 'true'
         uses: googleapis/release-please-action@v5
         with:
           config-file: release-please-config.json
